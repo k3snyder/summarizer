@@ -17,13 +17,13 @@ A privacy-first, locally-hosted document intelligence system that transforms PDF
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ STEP 1: Content Extraction                                          │
+│ STEP 1: Content Extraction                                           │
 │ ┌──────────────────────────────────────────────────────────────────┐ │
 │ │ PDF Parser (pdf_parser/)                                         │ │
 │ │ • Multi-strategy table extraction (pdfplumber + Camelot)         │ │
 │ │ • Chart data recognition with percentage extraction              │ │
-│ │ • OCR fallback with Tesseract                                   │ │
-│ │ • Full-page image capture (user-configurable 72-300 DPI)        │ │
+│ │ • OCR fallback with Tesseract                                    │ │
+│ │ • Full-page image capture (user-configurable 72-300 DPI)         │ │
 │ │ • Cross-page table merging                                       │ │
 │ │ Input:  PDF files                                                │ │
 │ │ Output: output/output_parsed.json                                │ │
@@ -38,7 +38,7 @@ A privacy-first, locally-hosted document intelligence system that transforms PDF
 └──────────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌──────────────────────────────────────────────────────────────────────┐
-│ STEP 2: Vision Processing (Optional, PDF only)                      │
+│ STEP 2: Vision Processing (Optional, PDF only)                       │
 │ ┌──────────────────────────────────────────────────────────────────┐ │
 │ │ A) Page Classification (vision_classifier_*)                     │ │
 │ │    • Quick detection of pages with visual content                │ │
@@ -53,7 +53,7 @@ A privacy-first, locally-hosted document intelligence system that transforms PDF
 │ │    • Research-backed prompting (2025 best practices)             │ │
 │ │    • Anti-hallucination with confidence markers                  │ │
 │ │    Providers: Ollama (local), Gemini, OpenAI                     │ │
-│ │                                                                   │ │
+│ │                                                                  │ │
 │ │    Vision OCR: Text extraction from images                       │ │
 │ │    • DeepSeek-powered OCR                                        │ │
 │ │    • Handles scanned documents                                   │ │
@@ -61,7 +61,7 @@ A privacy-first, locally-hosted document intelligence system that transforms PDF
 └──────────────────────────────────────────────────────────────────────┘
                                 ↓
 ┌──────────────────────────────────────────────────────────────────────┐
-│ STEP 3: Summarization (summarizer.py)                               │
+│ STEP 3: Summarization (summarizer.py)                                │
 │ • Text chunking with overlap                                         │
 │ • Multi-attempt summarization (up to 30 attempts)                    │
 │ • Quality validation (85-90% threshold)                              │
@@ -108,14 +108,7 @@ Download from [UB-Mannheim/tesseract](https://github.com/UB-Mannheim/tesseract/w
 ollama pull ministral-3:14b
 
 # Alternative vision models
-ollama pull llama3.2-vision:11b
-ollama pull llama3.2-vision:90b
 ollama pull gemma3:12b
-
-# For summarization
-ollama pull gemma2:9b-instruct-q8_0
-ollama pull gemma2:latest
-```
 
 ## Installation
 
