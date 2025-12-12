@@ -4,6 +4,7 @@ langchain-google-genai
 langchain
 langchain-openai
 google-genai
+langchain_text_splitters
 
 # PDF Parser dependencies
 pdfplumber==0.11.4
