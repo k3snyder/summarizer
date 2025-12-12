@@ -1,0 +1,8 @@
+Analyze the topic categories covered in the following notes.
+
+<<NOTES>>
+
+Provide a comma-separated list of up to 5 topic categories discussed. Each topic should be 5 words or less. Use sentence case. Do not use bullet points or numbers.
+
+Example output:
+Digital transformation initiatives, Customer service metrics, Brand reputation management, Communication channel effectiveness, Data privacy compliance

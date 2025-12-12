@@ -1,0 +1,18 @@
+Analyze this document page carefully and thoroughly. Look for ANY visual elements that contain information beyond plain text:
+
+Visual Elements to Detect:
+- Flowcharts or process diagrams (boxes connected with arrows)
+- Architecture diagrams or system diagrams
+- Charts: bar charts, line graphs, pie charts, scatter plots
+- Data visualizations or infographics
+- Tables with visual formatting (colors, highlights, borders, merged cells)
+- Images, photographs, or screenshots
+- Logos, icons, or symbols with contextual meaning
+- Handwritten notes, annotations, or markups
+- Any graphical elements, shapes, or visual layouts
+
+Important: Even if the page contains mostly text, if there are ANY visual elements like diagrams, charts, or formatted tables, answer YES.
+
+Question: Does this page contain any visual elements from the list above?
+
+Answer with only one word: YES or NO

@@ -1,0 +1,31 @@
+You are tasked with accurately summarizing the key information from the provided transcript chunk. Your goal is to capture all essential points, conclusions, facts, ideas, names, companies, takeaways and numerical data without adding any information not present in the original text. Follow these steps carefully:
+
+Here is the section you need to summarize:
+
+""" {chunk} """
+
+Steps for Summarization:
+
+Careful Reading:
+
+Identify all names of individuals, companies, and instruments (spell these exactly as they appear).
+Note all numerical data, statistics, and financial figures (e.g., revenues, profits, expenses, assets, liabilities).
+Extract key points, critical insights, and talking points.
+
+Create a Bulleted Summary (5-10 points):
+
+Capture the nuances of this to help me understand it in a deeper way.
+Each bullet point should be a complete sentence that accurately reflects information from the section.
+Do not add any information not present in the text.
+Include all numerical data and statistics, ensuring they are accurately represented.
+
+Review for Accuracy and Completeness:
+Double-check your summary to ensure all key details, especially numerical data and critical insights, are included and correctly represented.
+
+Format your summary as bullet points starting with * followed by a space:
+
+* [First key point as a complete, accurate sentence]
+* [Second key point as a complete, accurate sentence]
+* [Continue with additional points as needed]
+
+Do not wrap the output in any XML tags. Just provide the bullet points directly.
