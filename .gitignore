@@ -31,11 +31,11 @@ ENV/
 .DS_Store
 
 # Logs
-logs/
+#logs/
 *.log
 
 # Output files
-output/
+#output/
 
 # Input files (uncomment if input data should not be tracked)
 # input/
