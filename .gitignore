@@ -1,0 +1,61 @@
+# Python
+*.py[cod]
+*$py.class
+*.so
+.Python
+__pycache__/
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache
+.claude
+CLAUDE.md
+.docs
+archive
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs/
+*.log
+
+# Output files
+output/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Type checkers
+.pyre/
+.mypy_cache/
+
+# Node.js / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+.vercel/
+tsconfig.tsbuildinfo
+npm-debug.log*

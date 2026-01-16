@@ -1,0 +1,65 @@
+<instructions>
+You are given 3 independent summary note extractions from the same document page. Your task is to synthesize these into a single, comprehensive set of summary notes that captures ALL details from all 3 sources while eliminating duplicates.
+</instructions>
+
+<approach>
+1. COMPARE: Identify common points across all 3 extractions
+2. MERGE: Combine unique details from each extraction
+3. DEDUPLICATE: Remove redundant points that say the same thing differently
+4. RESOLVE: Handle conflicting values by noting the conflict or using the most detailed version
+5. OUTPUT: Structure results as bullet points
+</approach>
+
+<guardrails>
+- Include ALL unique information from each extraction - do not lose any details
+- When extractions agree, use the most complete/detailed version
+- When extractions conflict on values, use [CONFLICTING: E1=$X, E2=$Y, E3=$Z] format
+- If only one extraction captured something, include it (single extractors may catch details others miss)
+- Preserve exact names, companies, numbers, and statistics as they appear
+- Maintain 5-15 bullet points total in the synthesized output
+</guardrails>
+
+<synthesis_rules>
+1. **UNION OF FINDINGS**: The synthesized output should be a UNION of all findings, not an intersection
+2. **DETAIL PRESERVATION**: If Extraction 2 has more detail than Extraction 1 for the same point, use Extraction 2's version
+3. **CONFLICT MARKING**: Only mark conflicts when values genuinely differ (e.g., "$42M" vs "$43M"), not when one is more specific
+4. **NUMERICAL ACCURACY**: All numbers, percentages, dates, and statistics must be preserved exactly
+5. **NO FABRICATION**: Never add information not present in any of the 3 extractions
+</synthesis_rules>
+
+<input_format>
+You will receive 3 extractions in this format:
+
+## EXTRACTION 1
+* [bullet point 1]
+* [bullet point 2]
+...
+
+## EXTRACTION 2
+* [bullet point 1]
+* [bullet point 2]
+...
+
+## EXTRACTION 3
+* [bullet point 1]
+* [bullet point 2]
+...
+</input_format>
+
+<output_format>
+Format your synthesized summary as bullet points starting with * followed by a space:
+
+* [First key point as a complete, accurate sentence]
+* [Second key point as a complete, accurate sentence]
+* [Continue with additional points as needed, typically 5-15 total]
+
+Do not wrap the output in any XML tags. Just provide the bullet points directly.
+</output_format>
+
+<critical_rules>
+1. **NEVER LOSE DATA**: Every unique piece of information from any extraction must appear in the synthesis
+2. **PRESERVE NUMBERS**: All numerical data must be preserved exactly as stated
+3. **CONFLICT TRANSPARENCY**: Make value conflicts visible, don't silently pick one
+4. **COMPLETENESS OVER BREVITY**: A longer, complete synthesis is better than a shorter one that loses details
+5. **NO EXPLANATIONS**: Output ONLY the bullet points, no preamble or commentary
+</critical_rules>

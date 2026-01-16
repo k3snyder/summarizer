@@ -1,0 +1,89 @@
+Analyze this document page image and extract ALL visual information that would not be captured by standard text extraction.
+
+**OUTPUT FORMAT:**
+Provide your response as structured Markdown with the following sections. If a section has no content, write "None detected."
+
+## Visual Elements Summary
+[Brief overview of visual content types found on this page]
+
+## Charts & Data Visualizations
+[For each chart/graph found, provide:]
+- **Type**: [bar chart, line graph, pie chart, scatter plot, histogram, etc.]
+- **Title**: [chart title if visible]
+- **Axes**: [X-axis label/range, Y-axis label/range]
+- **Data Points**: [specific numerical values, trends, patterns]
+- **Legend**: [legend items and their color/symbol meanings]
+- **Key Insights**: [notable trends, outliers, comparisons, peak values]
+
+## Tables with Visual Formatting
+[For each table, describe:]
+- **Structure**: [rows x columns, column headers, row headers]
+- **Visual Elements**: [background colors, text highlights, borders, merged cells]
+- **Numeric Data**: [extract precise values from important cells]
+- **Visual Hierarchy**: [emphasized rows/columns, color coding schemes]
+- **Notable Patterns**: [sorted data, grouped sections, totals/subtotals]
+
+## Diagrams & Flowcharts
+[For each diagram, describe:]
+- **Type**: [flowchart, process diagram, network diagram, org chart, Venn diagram, etc.]
+- **Components**: [boxes, shapes, nodes with their exact text labels]
+- **Connections**: [arrows, lines, flow direction, relationship types]
+- **Relationships**: [how elements connect, dependencies, hierarchies]
+- **Decision Points**: [branching logic, conditions, outcomes]
+
+## Images & Graphical Elements
+- **Photos/Illustrations**: [describe subject matter, context, relevance]
+- **Logos/Icons**: [identify company/brand logos, symbolic icons]
+- **Annotations**: [handwritten notes, highlights, underlining, stamps]
+- **Layout Elements**: [colored headers, sidebars, callout boxes, dividers, borders]
+- **Visual Emphasis**: [bolded sections, boxed content, shaded areas]
+
+## Numeric & Statistical Data
+[Extract all visible numbers, being PRECISE:]
+- **Percentages**: [e.g., "23.5%", "91%"]
+- **Currency/Amounts**: [e.g., "$42,500", "€1.2M"]
+- **Measurements**: [e.g., "150 km", "5.2 kg", "98°F"]
+- **Statistics**: [mean, median, counts, ratios]
+- **Dates/Times**: [specific dates, time periods, quarters]
+- **Ranges**: [e.g., "15-20%", "Q1-Q3 2024"]
+
+## Data Quality Notes
+[CRITICAL - Be explicit about uncertainty:]
+- **Unclear/Blurry Areas**: [describe what content is uncertain - DO NOT GUESS OR HALLUCINATE]
+- **Partial Information**: [note if data appears cut off, cropped, or incomplete]
+- **Low Confidence Extractions**: [mark any uncertain values with [UNCLEAR: ~approximate value]]
+- **Missing Context**: [note if labels/legends are cut off or missing]
+
+---
+
+**CRITICAL EXTRACTION RULES:**
+
+1. **Be Specific, Not Generic**: Extract EXACT values, not descriptions
+   - ✅ GOOD: "Q1 Sales: $42,500, Q2 Sales: $51,200"
+   - ❌ BAD: "Sales data showing growth trend"
+
+2. **Preserve Exact Numbers**: For charts/tables, provide PRECISE values or clearly marked estimates
+   - ✅ GOOD: "January: 23%, February: 31%, March: 28%"
+   - ✅ ACCEPTABLE: "January: [UNCLEAR: ~20-25%]" (if blurry)
+   - ❌ BAD: "increasing trend across months"
+
+3. **Never Hallucinate**: If text/numbers are unclear, blurry, or missing, explicitly state this
+   - ✅ GOOD: "[UNCLEAR: value appears to be ~XX but image is blurry]"
+   - ❌ BAD: Making up plausible-looking numbers
+
+4. **Preserve Original Wording**: Use exact labels, titles, legends as they appear
+   - Don't paraphrase or interpret - copy verbatim
+
+5. **Use Structured Format**: Organize with bullet points, numbered lists, tables within Markdown
+
+6. **No Interpretation Beyond Visual**: Report what is visible, not what it might mean
+   - ✅ GOOD: "Red line shows 15% increase from Q1 to Q2"
+   - ❌ BAD: "Company is performing well" (interpretation)
+
+7. **Handle Text-Only Pages**: If the page contains no significant visual elements beyond plain text, respond ONLY with:
+
+**No significant visual elements detected.**
+
+---
+
+**DO NOT OUTPUT ANYTHING ELSE** beyond the structured markdown format above. Do not add conversational text, apologies, or explanations outside the specified sections.

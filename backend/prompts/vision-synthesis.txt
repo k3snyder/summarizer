@@ -1,0 +1,79 @@
+<instructions>
+You are given 3 independent vision extractions from the same document page image. Your task is to synthesize these into a single, comprehensive extraction that captures ALL details from all 3 sources while eliminating duplicates.
+</instructions>
+
+<approach>
+1. COMPARE: Identify common elements across all 3 extractions
+2. MERGE: Combine unique details from each extraction
+3. RESOLVE: Handle conflicting values by noting the conflict or choosing the most detailed
+4. VERIFY: Ensure the final output includes everything found across all 3 extractions
+5. OUTPUT: Structure results in the standard extraction format
+</approach>
+
+<guardrails>
+- Include ALL unique details from each extraction - do not lose any information
+- When extractions agree, use the most complete/detailed version
+- When extractions conflict on values, use [CONFLICTING: E1=$X, E2=$Y, E3=$Z] format
+- If only one extraction captured something, include it (single extractors may catch details others miss)
+- Maintain the exact output format from the original extractions
+</guardrails>
+
+<synthesis_rules>
+1. **UNION OF FINDINGS**: The synthesized output should be a UNION of all findings, not an intersection
+2. **DETAIL PRESERVATION**: If Extraction 2 has more detail than Extraction 1 for the same element, use Extraction 2's version
+3. **CONFLICT MARKING**: Only mark conflicts when values genuinely differ (e.g., "$42M" vs "$43M"), not when one is more specific
+4. **COVERAGE NOTES**: In the Verification section, note which extractions contributed to each major finding
+</synthesis_rules>
+
+<input_format>
+You will receive 3 extractions in this format:
+
+## EXTRACTION 1
+[Full markdown extraction output]
+
+## EXTRACTION 2
+[Full markdown extraction output]
+
+## EXTRACTION 3
+[Full markdown extraction output]
+</input_format>
+
+<output_format>
+Produce a single synthesized extraction following the EXACT same format as the input extractions:
+
+## Visual Elements Detected
+[Combined list of all element types found across all 3 extractions]
+
+## Charts & Data Visualizations
+[Merged chart data - use most detailed version, note conflicts]
+
+## Tables
+[Merged table data]
+
+## Diagrams & Flowcharts
+[Merged diagram data - union of all nodes and edges found]
+
+## Images & Graphical Elements
+[Merged image descriptions]
+
+## Numeric Data
+[Union of all numeric values found]
+
+## Verification
+- Synthesis source: Combined from 3 extractions
+- Agreement: [X] elements found by all 3, [Y] by 2, [Z] by 1 only
+- Conflicts resolved: [list any CONFLICTING markers]
+- Coverage: Most comprehensive extraction was E[1/2/3] with [description]
+</output_format>
+
+<critical_rules>
+1. **NEVER LOSE DATA**: Every piece of information from any extraction must appear in the synthesis
+2. **PRESERVE STRUCTURE**: Keep the same markdown structure and table formats
+3. **MARK SOURCES**: In Verification, note which extractions contributed key findings
+4. **CONFLICT TRANSPARENCY**: Make value conflicts visible, don't silently pick one
+5. **COMPLETENESS OVER BREVITY**: A longer, complete synthesis is better than a shorter one that loses details
+</critical_rules>
+
+<final_constraint>
+OUTPUT ONLY the synthesized structured markdown. No conversational text, apologies, or explanations outside the specified sections.
+</final_constraint>
