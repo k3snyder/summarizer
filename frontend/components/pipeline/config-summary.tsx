@@ -296,6 +296,14 @@ export function ConfigSummary({ config, fileType = "pdf" }: ConfigSummaryProps) 
                     </Badge>
                   }
                 />
+                <SummaryRow
+                  label="Detailed Extraction"
+                  value={<BooleanBadge value={config.summarizer_detailed_extraction} />}
+                />
+                <SummaryRow
+                  label="Insight Mode"
+                  value={<BooleanBadge value={config.summarizer_insight_mode} />}
+                />
               </>
             )}
           </div>

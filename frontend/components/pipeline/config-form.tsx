@@ -707,6 +707,23 @@ export function ConfigForm({ onSubmit, initialConfig, filename }: ConfigFormProp
               onCheckedChange={(checked) => updateConfig("summarizer_detailed_extraction", checked)}
             />
           </div>
+
+          {/* Insight Mode Toggle */}
+          <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
+            <div className="space-y-0.5">
+              <Label htmlFor="summarizer_insight_mode" className="text-base">
+                Insight Mode
+              </Label>
+              <p className="text-sm text-muted-foreground">
+                Two-stage extraction: synthesize all context then extract focused insights for knowledge base
+              </p>
+            </div>
+            <Switch
+              id="summarizer_insight_mode"
+              checked={config.summarizer_insight_mode}
+              onCheckedChange={(checked) => updateConfig("summarizer_insight_mode", checked)}
+            />
+          </div>
         </div>
       )}
     </div>

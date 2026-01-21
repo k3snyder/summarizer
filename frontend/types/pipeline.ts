@@ -91,6 +91,9 @@ export interface PipelineConfig {
   /** Run summarization 3 times per page and synthesize results for comprehensive coverage */
   summarizer_detailed_extraction: boolean;
 
+  /** Two-stage insight extraction: synthesize context then extract focused insights for knowledge base */
+  summarizer_insight_mode: boolean;
+
   /** CLI provider for summarization (when summarizer_provider is 'codex' or 'claude') */
   summarizer_cli_provider?: CLIProvider;
 
@@ -117,5 +120,6 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   summarizer_mode: 'full',
   summarizer_provider: 'ollama',
   summarizer_detailed_extraction: false,
+  summarizer_insight_mode: false,
   keep_base64_images: false,
 };
