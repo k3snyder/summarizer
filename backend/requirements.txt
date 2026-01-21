@@ -17,7 +17,7 @@ pydantic-settings>=2.0.0
 # AI/LLM providers
 google-genai>=0.3.0
 google-api-core>=2.0.0
-langchain-text-splitter>=0.0.1
+langchain-text-splitters
 openai
 
 # Document parsing

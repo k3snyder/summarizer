@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.logging import setup_logging, shutdown_logging
 from app.routers import health, jobs
+from app.db.database import init_db
 from app.services.cleanup_task import start_cleanup_task, stop_cleanup_task
 
 logger = logging.getLogger(__name__)
@@ -26,6 +27,9 @@ async def lifespan(app: FastAPI):
         settings.log_level,
         settings.log_dir,
     )
+
+    # Initialize database connection
+    await init_db()
 
     start_cleanup_task()
 

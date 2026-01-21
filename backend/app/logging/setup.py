@@ -44,6 +44,7 @@ def setup_logging() -> QueueListener:
     - logs/extraction.log - Extraction stage logs
     - logs/vision.log - Vision processing logs
     - logs/summarization.log - Summarization logs
+    - logs/cli.log - CLI operations (Codex/Claude)
     - logs/pipeline.log - Combined pipeline logs
     - Console output for all logs
 
@@ -103,6 +104,18 @@ def setup_logging() -> QueueListener:
     summarization_handler.setLevel(getattr(logging, settings.effective_log_level_summarization))
     summarization_handler.addFilter(StageFilter("summarization"))
     handlers.append(summarization_handler)
+
+    # CLI handler (Codex/Claude CLI operations)
+    cli_handler = RotatingFileHandler(
+        log_dir / "cli.log",
+        maxBytes=settings.log_max_bytes,
+        backupCount=settings.log_backup_count,
+        encoding="utf-8",
+    )
+    cli_handler.setFormatter(formatter)
+    cli_handler.setLevel(getattr(logging, settings.effective_log_level_cli))
+    cli_handler.addFilter(StageFilter("cli"))
+    handlers.append(cli_handler)
 
     # Combined pipeline handler (all stages)
     pipeline_handler = RotatingFileHandler(

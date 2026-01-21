@@ -70,8 +70,10 @@ class Settings(BaseSettings):
     summarizer_cli_provider: str = "codex"
 
     # Codex CLI settings
-    codex_cli_timeout: int = 300
+    codex_cli_timeout: int = 600  # 10 minutes - should be >= stream_idle_timeout_ms
     codex_cli_sandbox_policy: str = "workspace-write"
+    codex_cli_reasoning_effort: Optional[str] = None  # minimal | low | medium | high | xhigh
+    codex_cli_stream_idle_timeout_ms: Optional[int] = None  # Stream idle timeout (default 300000 = 5 min)
 
     # Claude CLI settings
     claude_cli_model: str = "sonnet"  # opus, sonnet, haiku
@@ -102,6 +104,7 @@ class Settings(BaseSettings):
     log_level_extraction: Optional[str] = None
     log_level_vision: Optional[str] = None
     log_level_summarization: Optional[str] = None
+    log_level_cli: Optional[str] = None  # For CLI-specific log level (Codex/Claude)
     log_dir: str = "./logs"
     log_max_bytes: int = 10_485_760  # 10MB
     log_backup_count: int = 5
@@ -136,6 +139,11 @@ class Settings(BaseSettings):
     def effective_log_level_summarization(self) -> str:
         """Get summarization log level with fallback to global."""
         return self.log_level_summarization or self.log_level
+
+    @property
+    def effective_log_level_cli(self) -> str:
+        """Get CLI log level with fallback to global."""
+        return self.log_level_cli or self.log_level
 
     @property
     def effective_vision_classifier_provider(self) -> str:

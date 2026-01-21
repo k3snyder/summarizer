@@ -52,6 +52,8 @@ def get_cli_executor(
         return CodexCLIExecutor(
             timeout=settings.codex_cli_timeout,
             sandbox_policy=settings.codex_cli_sandbox_policy,
+            reasoning_effort=settings.codex_cli_reasoning_effort,
+            stream_idle_timeout_ms=settings.codex_cli_stream_idle_timeout_ms,
         )
     elif provider == CLIProvider.CLAUDE or provider == "claude":
         return ClaudeCLIExecutor(

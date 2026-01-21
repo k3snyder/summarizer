@@ -10,6 +10,8 @@ import json
 import logging
 import shutil
 import subprocess
+import time
+from typing import Optional
 
 from app.pipeline.cli.base import CLIExecutionError, CLIExecutorBase
 
@@ -76,15 +78,21 @@ class CodexCLIExecutor(CLIExecutorBase):
         self,
         timeout: int = 300,
         sandbox_policy: str = "workspace-write",
+        reasoning_effort: Optional[str] = None,
+        stream_idle_timeout_ms: Optional[int] = None,
     ):
         """Initialize Codex CLI executor.
 
         Args:
             timeout: Default timeout in seconds (default 300 = 5 minutes)
             sandbox_policy: Sandbox policy for Codex (default 'workspace-write')
+            reasoning_effort: Reasoning effort level (minimal|low|medium|high|xhigh)
+            stream_idle_timeout_ms: Stream idle timeout in milliseconds
         """
         self._timeout = timeout
         self._sandbox_policy = sandbox_policy
+        self._reasoning_effort = reasoning_effort
+        self._stream_idle_timeout_ms = stream_idle_timeout_ms
 
     @property
     def name(self) -> str:
@@ -132,16 +140,33 @@ class CodexCLIExecutor(CLIExecutorBase):
             "--full-auto",
             "--skip-git-repo-check",
             "--json",
-            "-",  # Read prompt from stdin
         ]
 
+        # Add optional config flags
+        if self._reasoning_effort:
+            cmd.extend(["-c", f"model_reasoning_effort={self._reasoning_effort}"])
+        if self._stream_idle_timeout_ms:
+            cmd.extend(["-c", f"stream_idle_timeout_ms={self._stream_idle_timeout_ms}"])
+
+        cmd.append("-")  # Read prompt from stdin
+
+        # CODEX_START - Log configuration at start
         logger.info(
-            "Executing codex command in %s (timeout=%ds, sandbox=%s, prompt_len=%d)",
+            "[CODEX_START] working_dir=%s timeout=%ds sandbox=%s reasoning_effort=%s "
+            "stream_idle_timeout_ms=%s prompt_len=%d cmd=%s",
             working_dir,
             effective_timeout,
             self._sandbox_policy,
+            self._reasoning_effort,
+            self._stream_idle_timeout_ms,
             len(prompt),
+            " ".join(cmd),
         )
+
+        # CODEX_PROMPT - Log full prompt at DEBUG level
+        logger.debug("[CODEX_PROMPT] %s", prompt)
+
+        start_time = time.monotonic()
 
         def run_codex() -> subprocess.CompletedProcess[str]:
             """Synchronous subprocess execution."""
@@ -156,9 +181,38 @@ class CodexCLIExecutor(CLIExecutorBase):
 
         try:
             result = await asyncio.to_thread(run_codex)
-            logger.info("Codex command completed with exit code %d", result.returncode)
+            elapsed = time.monotonic() - start_time
+
+            # CODEX_COMPLETE - Log completion details
+            logger.info(
+                "[CODEX_COMPLETE] exit_code=%d elapsed=%.2fs stdout_len=%d stderr_len=%d",
+                result.returncode,
+                elapsed,
+                len(result.stdout),
+                len(result.stderr),
+            )
+
+            # CODEX_STDOUT - Log raw JSONL output at DEBUG level
+            if result.stdout:
+                logger.debug("[CODEX_STDOUT] %s", result.stdout)
+
+            # CODEX_STDERR - Log any stderr output as WARNING
+            if result.stderr:
+                logger.warning("[CODEX_STDERR] %s", result.stderr)
+
         except subprocess.TimeoutExpired as e:
-            logger.error("Codex CLI timed out after %d seconds", effective_timeout)
+            elapsed = time.monotonic() - start_time
+            partial_stdout = getattr(e, "stdout", "") or ""
+            partial_stderr = getattr(e, "stderr", "") or ""
+
+            # CODEX_TIMEOUT - Log timeout with partial output
+            logger.error(
+                "[CODEX_TIMEOUT] timeout=%ds elapsed=%.2fs partial_stdout_len=%d partial_stderr=%s",
+                effective_timeout,
+                elapsed,
+                len(partial_stdout) if partial_stdout else 0,
+                partial_stderr[:500] if partial_stderr else "",
+            )
             raise CLIExecutionError(
                 f"Codex CLI timed out after {effective_timeout} seconds",
                 exit_code=-2,
@@ -166,6 +220,13 @@ class CodexCLIExecutor(CLIExecutorBase):
             )
 
         if result.returncode != 0:
+            # CODEX_ERROR - Log non-zero exit code details
+            logger.error(
+                "[CODEX_ERROR] exit_code=%d stderr=%s stdout_preview=%s",
+                result.returncode,
+                result.stderr,
+                result.stdout[:1000] if result.stdout else "",
+            )
             raise CLIExecutionError(
                 f"Codex CLI failed with exit code {result.returncode}",
                 exit_code=result.returncode,
@@ -176,7 +237,14 @@ class CodexCLIExecutor(CLIExecutorBase):
         response = _parse_jsonl_output(result.stdout)
 
         if not response:
-            logger.warning("Codex returned empty response. stdout: %s", result.stdout[:500])
+            # CODEX_EMPTY_RESPONSE - Log warning when parsed response is empty
+            logger.warning(
+                "[CODEX_EMPTY_RESPONSE] raw_stdout_preview=%s",
+                result.stdout[:1000] if result.stdout else "(empty)",
+            )
+        else:
+            # CODEX_PARSED_RESPONSE - Log final parsed response at DEBUG level
+            logger.debug("[CODEX_PARSED_RESPONSE] response_len=%d response=%s", len(response), response)
 
         return response
 
