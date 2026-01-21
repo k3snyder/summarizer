@@ -98,6 +98,11 @@ class PipelineConfig(BaseModel):
         description="Run summarization 3 times per page and synthesize results for comprehensive coverage"
     )
 
+    summarizer_insight_mode: bool = Field(
+        default=False,
+        description="Two-stage insight extraction: synthesize context then extract focused insights for knowledge base"
+    )
+
     summarizer_cli_provider: Optional[Literal['codex', 'claude']] = Field(
         default=None,
         description="CLI provider for summarization (codex or claude, used when summarizer_provider is codex/claude)"

@@ -542,6 +542,7 @@ class PipelineOrchestrator:
             provider=summarizer_provider,
             batch_size=5,
             detailed_extraction=config.get("summarizer_detailed_extraction", False),
+            insight_mode=config.get("summarizer_insight_mode", False),
         )
 
         # Use CLISummarizer for codex/claude providers, otherwise SummarizeService

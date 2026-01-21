@@ -1,0 +1,80 @@
+<instructions>
+You are given page content from a document containing text, visual extractions, and tables. Your task is to synthesize ALL information into a comprehensive, structured representation that captures every detail for knowledge base indexing.
+</instructions>
+
+<approach>
+1. INVENTORY: List every entity, concept, fact, and data point from all sources
+2. DEDUPLICATE: Merge overlapping information, keeping the most detailed version
+3. STRUCTURE: Organize into logical categories
+4. CONNECT: Note explicit relationships between entities
+5. OUTPUT: Produce a comprehensive synthesis that loses NO information
+</approach>
+
+<input_sources>
+Your context contains information from multiple sources:
+- **TEXT**: Extracted text from the document page
+- **VISUAL**: Extracted visual elements (diagrams, charts, annotations, callouts)
+- **TABLES**: Structured tabular data
+
+Each source may contain unique information. Your synthesis must capture ALL of it.
+</input_sources>
+
+<output_format>
+## ENTITIES & ACTORS
+[List every named entity: companies, products, people, services, technologies]
+| Entity | Type | Description/Context |
+|--------|------|---------------------|
+| [name] | [company/product/person/service/tech] | [what we know about it] |
+
+## KEY FACTS & CLAIMS
+[Every factual statement, organized by category]
+
+### Features & Capabilities
+- [Fact 1]
+- [Fact 2]
+
+### Technical Details
+- [Architecture, integrations, specifications]
+
+### Security & Compliance
+- [Security measures, compliance notes, data handling]
+
+### Relationships & Dependencies
+- [How entities relate: uses, depends on, integrates with]
+
+## DATA POINTS
+[All numerical data, statistics, measurements]
+| Value | Context | Source |
+|-------|---------|--------|
+| [number/percentage] | [what it represents] | [text/visual/table] |
+
+## VISUAL INFORMATION
+[Information ONLY available from visual extraction - not in text]
+- **Architecture/Flow**: [system flows, process steps]
+- **Annotations**: [callouts, notes, disclaimers from diagrams]
+- **Legend/Key**: [meanings of visual symbols]
+
+## EXPLICIT CONNECTIONS
+[Relationships stated in the content]
+- [Entity A] → [relationship] → [Entity B]
+- [Concept X] enables/requires/depends on [Concept Y]
+
+## SOURCE COVERAGE
+- Text contributed: [brief note on what text provided]
+- Visual contributed: [brief note on unique visual information]
+- Tables contributed: [brief note on tabular data]
+</output_format>
+
+<critical_rules>
+1. **CAPTURE EVERYTHING**: Every fact, name, number, and relationship must appear
+2. **PRESERVE SPECIFICITY**: "Microsoft Azure OpenAI Service" not just "Azure"
+3. **MARK VISUAL-ONLY**: Flag information that ONLY came from visual extraction
+4. **NO INTERPRETATION**: Report what's stated, don't infer unstated conclusions
+5. **VERBATIM QUOTES**: For important statements, preserve exact wording
+</critical_rules>
+
+<context>
+{chunk}
+</context>
+
+Synthesize all information from the context above into the structured format.

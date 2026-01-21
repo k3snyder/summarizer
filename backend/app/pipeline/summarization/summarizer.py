@@ -123,6 +123,8 @@ class SummarizeService:
         self._notes_prompt_fallback: Optional[str] = None
         self._topics_prompt: Optional[str] = None
         self._synthesis_prompt: Optional[str] = None
+        self._context_synthesis_prompt: Optional[str] = None
+        self._insight_prompt: Optional[str] = None
 
         # Semaphore for rate limiting
         self._semaphore = asyncio.Semaphore(config.batch_size)
@@ -168,6 +170,20 @@ class SummarizeService:
         if self._synthesis_prompt is None:
             self._synthesis_prompt = _load_prompt("summarizer-synthesis.txt")
         return self._synthesis_prompt
+
+    @property
+    def context_synthesis_prompt(self) -> str:
+        """Load context synthesis prompt lazily (for insight mode stage 1)."""
+        if self._context_synthesis_prompt is None:
+            self._context_synthesis_prompt = _load_prompt("summarizer-context-synthesis.txt")
+        return self._context_synthesis_prompt
+
+    @property
+    def insight_prompt(self) -> str:
+        """Load insight extraction prompt lazily (for insight mode stage 2)."""
+        if self._insight_prompt is None:
+            self._insight_prompt = _load_prompt("summarizer-insight-prompt.txt")
+        return self._insight_prompt
 
     def _get_client_for_tier(self, tier: int) -> OpenAI:
         """Get the appropriate client for a model tier."""
@@ -305,6 +321,10 @@ Provide only the percentage number."""
         # Detailed extraction mode - run 3 passes and synthesize
         if self.config.detailed_extraction:
             return await self._summarize_page_detailed(context)
+
+        # Insight mode - two-stage synthesis + insight extraction
+        if self.config.insight_mode:
+            return await self._summarize_page_insight(context)
 
         # Token accumulators
         total_prompt_tokens = 0
@@ -712,6 +732,250 @@ Provide only the percentage number."""
             completion_tokens=total_completion_tokens,
             total_tokens=total_tokens,
         )
+
+    async def _summarize_page_insight(self, context: PageContext) -> SummaryResult:
+        """Summarize a page using standard flow + two-stage insight extraction.
+
+        First runs the standard notes/topics flow, then enriches with insight extraction:
+        - Standard: Generate notes and topics via quality loop
+        - Stage 1: Synthesize all context into comprehensive inventory
+        - Stage 2: Extract focused insights, connections, and implications
+        - Append key_insights to summary_notes for enriched output
+
+        Args:
+            context: PageContext with page content
+
+        Returns:
+            SummaryResult with both standard notes and insight mode fields populated
+        """
+        summarization_logger.info(
+            "Starting insight extraction - page=%d, running standard + 2 insight stages",
+            context.page_number,
+        )
+
+        # Token accumulators
+        total_prompt_tokens = 0
+        total_completion_tokens = 0
+        total_tokens = 0
+
+        # Build comprehensive context from all sources
+        full_context = context.build_context()
+
+        # === STANDARD FLOW: Notes and Topics via quality loop ===
+        # Temporarily disable insight_mode to run standard flow
+        original_insight_mode = self.config.insight_mode
+        self.config.insight_mode = False
+
+        standard_result = await self._summarize_page_full(context)
+
+        # Restore insight_mode
+        self.config.insight_mode = original_insight_mode
+
+        notes = list(standard_result.summary_notes) if standard_result.summary_notes else []
+        topics = list(standard_result.summary_topics) if standard_result.summary_topics else []
+        total_prompt_tokens += standard_result.prompt_tokens
+        total_completion_tokens += standard_result.completion_tokens
+        total_tokens += standard_result.total_tokens
+
+        summarization_logger.debug(
+            "Standard flow complete - page=%d, notes=%d, topics=%d",
+            context.page_number,
+            len(notes),
+            len(topics),
+        )
+
+        # === INSIGHT STAGE 1: Context Synthesis ===
+        summarization_logger.debug(
+            "Insight Stage 1: Context synthesis - page=%d, context_len=%d",
+            context.page_number,
+            len(full_context),
+        )
+
+        synthesis_prompt = self.context_synthesis_prompt.replace("{chunk}", full_context)
+        synthesis_response = await self._call_llm(synthesis_prompt, tier=1)
+        total_prompt_tokens += synthesis_response.prompt_tokens
+        total_completion_tokens += synthesis_response.completion_tokens
+        total_tokens += synthesis_response.total_tokens
+
+        context_synthesis = synthesis_response.content or ""
+
+        summarization_logger.debug(
+            "Insight Stage 1 complete - page=%d, synthesis_len=%d",
+            context.page_number,
+            len(context_synthesis),
+        )
+
+        # === INSIGHT STAGE 2: Insight Extraction ===
+        summarization_logger.debug(
+            "Insight Stage 2: Insight extraction - page=%d",
+            context.page_number,
+        )
+
+        insight_prompt = self.insight_prompt.replace("{chunk}", context_synthesis)
+        insight_response = await self._call_llm(insight_prompt, tier=1)
+        total_prompt_tokens += insight_response.prompt_tokens
+        total_completion_tokens += insight_response.completion_tokens
+        total_tokens += insight_response.total_tokens
+
+        insight_output = insight_response.content or ""
+
+        # Parse insight output
+        parsed = self._parse_insight_output(insight_output)
+
+        summarization_logger.info(
+            "Insight extraction complete - page=%d, notes=%d, insights=%d, connections=%d",
+            context.page_number,
+            len(notes),
+            len(parsed.get("key_insights", [])),
+            len(parsed.get("connections", [])),
+        )
+
+        # Append key_insights to notes for enriched output
+        key_insights = parsed.get("key_insights", [])
+        combined_notes = notes + key_insights if key_insights else notes
+
+        # Use primary tags from insights to enrich topics if available
+        insight_topics = parsed.get("knowledge_tags", {}).get("primary", [])
+        combined_topics = topics + [t for t in insight_topics if t not in topics] if insight_topics else topics
+
+        return SummaryResult(
+            page_number=context.page_number,
+            chunk_id=context.chunk_id,
+            # Combined fields: standard notes + key_insights appended
+            summary_notes=combined_notes if combined_notes else None,
+            summary_topics=combined_topics if combined_topics else None,
+            summary_relevancy=standard_result.summary_relevancy,
+            attempts_used=standard_result.attempts_used + 2,  # standard + 2 insight stages
+            # Insight mode specific fields
+            context_synthesis=context_synthesis if context_synthesis else None,
+            core_understanding=parsed.get("core_understanding"),
+            key_insights=key_insights if key_insights else None,
+            connections=parsed.get("connections"),
+            implications=parsed.get("implications"),
+            knowledge_tags=parsed.get("knowledge_tags"),
+            summary_statement=parsed.get("summary_statement"),
+            # Token usage
+            prompt_tokens=total_prompt_tokens,
+            completion_tokens=total_completion_tokens,
+            total_tokens=total_tokens,
+        )
+
+    def _parse_insight_output(self, output: str) -> dict:
+        """Parse structured insight output into component fields.
+
+        Args:
+            output: Raw markdown output from insight prompt
+
+        Returns:
+            Dict with parsed fields: core_understanding, key_insights, connections,
+            implications, knowledge_tags, summary_statement
+        """
+        result: dict = {
+            "core_understanding": None,
+            "key_insights": [],
+            "connections": [],
+            "implications": {"users": [], "technical": [], "business": []},
+            "knowledge_tags": {"primary": [], "related": [], "entities": []},
+            "summary_statement": None,
+        }
+
+        if not output:
+            return result
+
+        lines = output.split("\n")
+        current_section = None
+        current_subsection = None
+        buffer: list[str] = []
+
+        for line in lines:
+            line_stripped = line.strip()
+
+            # Detect section headers
+            if line_stripped.startswith("## CORE UNDERSTANDING"):
+                current_section = "core_understanding"
+                current_subsection = None
+                buffer = []
+            elif line_stripped.startswith("## KEY INSIGHTS"):
+                # Save previous section
+                if current_section == "core_understanding" and buffer:
+                    result["core_understanding"] = "\n".join(buffer).strip()
+                current_section = "key_insights"
+                current_subsection = None
+                buffer = []
+            elif line_stripped.startswith("## CONNECTIONS"):
+                current_section = "connections"
+                current_subsection = None
+                buffer = []
+            elif line_stripped.startswith("## IMPLICATIONS"):
+                current_section = "implications"
+                current_subsection = None
+                buffer = []
+            elif line_stripped.startswith("## KNOWLEDGE BASE TAGS"):
+                current_section = "knowledge_tags"
+                current_subsection = None
+                buffer = []
+            elif line_stripped.startswith("## SUMMARY STATEMENT"):
+                current_section = "summary_statement"
+                current_subsection = None
+                buffer = []
+
+            # Detect subsections within implications and knowledge_tags
+            elif current_section == "implications":
+                if "For Users" in line_stripped or "Customers" in line_stripped:
+                    current_subsection = "users"
+                elif "Technical" in line_stripped:
+                    current_subsection = "technical"
+                elif "Business" in line_stripped or "Strategy" in line_stripped:
+                    current_subsection = "business"
+                elif line_stripped.startswith("- ") and current_subsection:
+                    result["implications"][current_subsection].append(line_stripped[2:])
+
+            elif current_section == "knowledge_tags":
+                if "Primary" in line_stripped:
+                    current_subsection = "primary"
+                elif "Related" in line_stripped:
+                    current_subsection = "related"
+                elif "Entity" in line_stripped or "Entities" in line_stripped:
+                    current_subsection = "entities"
+                elif "Domain" in line_stripped:
+                    current_subsection = "domain"
+                elif current_subsection and ":" in line_stripped:
+                    # Parse inline tags like "**Primary topics**: topic1, topic2"
+                    parts = line_stripped.split(":", 1)
+                    if len(parts) > 1:
+                        tags = [t.strip() for t in parts[1].split(",") if t.strip()]
+                        if current_subsection in result["knowledge_tags"]:
+                            result["knowledge_tags"][current_subsection].extend(tags)
+
+            # Collect content for current section
+            elif current_section == "core_understanding":
+                if line_stripped and not line_stripped.startswith("#"):
+                    buffer.append(line_stripped)
+
+            elif current_section == "key_insights":
+                if line_stripped.startswith("* **"):
+                    # Extract insight text after the bold label
+                    insight = line_stripped[2:]  # Remove "* "
+                    result["key_insights"].append(insight)
+                elif line_stripped.startswith("- **"):
+                    insight = line_stripped[2:]  # Remove "- "
+                    result["key_insights"].append(insight)
+
+            elif current_section == "connections":
+                if line_stripped.startswith("- "):
+                    result["connections"].append(line_stripped[2:])
+
+            elif current_section == "summary_statement":
+                if line_stripped and not line_stripped.startswith("#"):
+                    buffer.append(line_stripped)
+
+        # Save final section if it was summary_statement
+        if current_section == "summary_statement" and buffer:
+            result["summary_statement"] = "\n".join(buffer).strip()
+        elif current_section == "core_understanding" and buffer:
+            result["core_understanding"] = "\n".join(buffer).strip()
+
+        return result
 
     async def summarize_pages_batch(
         self,

@@ -61,6 +61,7 @@ class PipelineRunner:
             "summarizer_mode": config.summarizer_mode,
             "summarizer_provider": config.summarizer_provider,
             "summarizer_detailed_extraction": config.summarizer_detailed_extraction,
+            "summarizer_insight_mode": config.summarizer_insight_mode,
             "keep_base64_images": config.keep_base64_images,
         }
 

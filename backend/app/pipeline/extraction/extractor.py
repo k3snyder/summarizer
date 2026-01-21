@@ -265,11 +265,16 @@ class DocumentExtractor:
     def _extract_tables_from_page(self, page) -> list[list[list[str]]]:
         """
         Extract tables from a pdfplumber page using multiple strategies.
+
+        Uses line-based detection first (most reliable), then falls back to
+        text-based detection only for explicit tabular layouts.
+
         Returns list of tables, where each table is a list of rows (list of cells).
         """
         tables: list[list[list[str]]] = []
         try:
-            strategies = [
+            # Strategy 1 & 2: Line-based detection (reliable - detects actual table borders)
+            line_strategies = [
                 {
                     "name": "lines_strict",
                     "settings": {
@@ -290,19 +295,10 @@ class DocumentExtractor:
                         "min_words_horizontal": 1,
                     },
                 },
-                {
-                    "name": "text",
-                    "settings": {
-                        "horizontal_strategy": "text",
-                        "vertical_strategy": "text",
-                        "snap_tolerance": 3,
-                        "intersection_y_tolerance": 3,
-                    },
-                },
             ]
 
             found_valid_tables = False
-            for strategy in strategies:
+            for strategy in line_strategies:
                 if found_valid_tables:
                     break
 
@@ -316,17 +312,7 @@ class DocumentExtractor:
                         if not self._is_valid_table(extracted):
                             continue
 
-                        # Clean and convert to list of lists
-                        cleaned_table = []
-                        for row in extracted:
-                            cleaned_row = []
-                            for cell in row:
-                                if cell is None or str(cell).strip() == "":
-                                    cleaned_row.append("")
-                                else:
-                                    cleaned_row.append(str(cell).strip())
-                            cleaned_table.append(cleaned_row)
-
+                        cleaned_table = self._clean_table_data(extracted)
                         if len(cleaned_table) >= 2:
                             tables.append(cleaned_table)
                             found_valid_tables = True
@@ -334,6 +320,15 @@ class DocumentExtractor:
                     except Exception as e:
                         logger.debug(f"Error extracting table: {e}")
                         continue
+
+            # Strategy 3: Text-based detection (DISABLED - causes too many false positives)
+            # The "text" strategy infers tables from text positioning, but frequently
+            # misdetects body text layout as tables, producing fragmented garbage.
+            # Only use line-based detection which requires actual table borders.
+            #
+            # If we need to support borderless tables in the future, we should add
+            # more validation (e.g., check for repeating header patterns, numeric
+            # columns, or consistent delimiters) rather than enabling raw text strategy.
 
             # Try chart data extraction if no regular tables found
             if not tables:
@@ -345,11 +340,35 @@ class DocumentExtractor:
 
         return tables
 
+    def _clean_table_data(self, extracted: list) -> list[list[str]]:
+        """Clean extracted table data by normalizing cells."""
+        cleaned_table = []
+        for row in extracted:
+            cleaned_row = []
+            for cell in row:
+                if cell is None or str(cell).strip() == "":
+                    cleaned_row.append("")
+                else:
+                    cleaned_row.append(str(cell).strip())
+            cleaned_table.append(cleaned_row)
+        return cleaned_table
+
     def _is_valid_table(self, table_data) -> bool:
-        """Check if extracted table data represents a real table."""
+        """Check if extracted table data represents a real table.
+
+        Validates that the extracted data is actually tabular content and not
+        fragmented body text incorrectly detected as a table structure.
+
+        Criteria:
+        - At least 2 rows
+        - At least 50% non-empty cells (filters OCR noise with many empty cells)
+        - At least 2 columns with data
+        - Not just fragmented text (checks for structural consistency)
+        """
         if not table_data or len(table_data) < 2:
             return False
 
+        # Count cells and check for empty cell ratio
         total_cells = 0
         non_empty_cells = 0
         for row in table_data:
@@ -358,9 +377,12 @@ class DocumentExtractor:
                 if cell and str(cell).strip() and cell != "None":
                     non_empty_cells += 1
 
-        if total_cells == 0 or (non_empty_cells / total_cells) < 0.3:
+        # Require at least 50% non-empty cells (was 30%)
+        # This filters out OCR noise where body text is fragmented into many empty cells
+        if total_cells == 0 or (non_empty_cells / total_cells) < 0.5:
             return False
 
+        # Check for consistent column structure (at least 2 columns with data)
         cols_with_data = 0
         for col_idx in range(len(table_data[0])):
             col_has_data = False
@@ -371,7 +393,20 @@ class DocumentExtractor:
             if col_has_data:
                 cols_with_data += 1
 
-        return cols_with_data >= 2
+        if cols_with_data < 2:
+            return False
+
+        # Check for row consistency - real tables have similar cell counts per row
+        # Fragmented text often has wildly varying row lengths
+        row_lengths = [len(row) for row in table_data]
+        if row_lengths:
+            avg_length = sum(row_lengths) / len(row_lengths)
+            # If row lengths vary by more than 50% from average, likely not a real table
+            for length in row_lengths:
+                if avg_length > 0 and abs(length - avg_length) / avg_length > 0.5:
+                    return False
+
+        return True
 
     def _extract_chart_data(self, page) -> list[list[list[str]]]:
         """Extract data from charts/figures that contain percentage data."""

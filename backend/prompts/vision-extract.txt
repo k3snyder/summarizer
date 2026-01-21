@@ -3,10 +3,11 @@ Analyze this document page image and extract ALL visual information that would n
 </instructions>
 
 <approach>
-1. SCAN: Identify what visual element types exist
-2. EXTRACT: Pull exact values, labels, text verbatim
+1. SCAN: Identify what visual element types exist (charts, diagrams, tables, images)
+2. EXTRACT: Pull exact values, labels, ALL text verbatim - including text boxes, callouts, legends, annotations, and notes within diagrams
 3. VERIFY: Confirm each extraction is actually visible
-4. OUTPUT: Structure results in the format below
+4. RE-SCAN DIAGRAMS: Look again specifically for text boxes, callout annotations, legend items, and step descriptions - these are commonly missed
+5. OUTPUT: Structure results in the format below
 </approach>
 
 <guardrails>
@@ -19,11 +20,11 @@ Analyze this document page image and extract ALL visual information that would n
 <examples>
 <example>
 <input>
-Document page with a bar chart showing quarterly revenue and a 3-node process flowchart.
+Document page with a bar chart showing quarterly revenue and an architecture diagram with callout boxes.
 </input>
 <output>
 ## Visual Elements Detected
-bar chart, flowchart
+bar chart, architecture diagram, callouts
 
 ## Charts & Data Visualizations
 
@@ -43,28 +44,40 @@ bar chart, flowchart
 
 ## Diagrams & Flowcharts
 
-### Diagram: Customer Onboarding
-- **Type**: Process flowchart
+### Diagram: System Architecture
+- **Type**: Architecture diagram
 
 **Nodes:**
-| ID | Label | Type |
-|----|-------|------|
-| n1 | Sign Up | process |
-| n2 | Verify Email | process |
-| n3 | Complete Profile | process |
+| ID | Label | Type | Visual |
+|----|-------|------|--------|
+| n1 | Client App | process | rectangle, blue |
+| n2 | API Gateway | process | rectangle, green |
+| n3 | Database | data store | cylinder, gray |
 
 **Edges:**
-| Source | Target | Label |
-|--------|--------|-------|
-| n1 | n2 | → |
-| n2 | n3 | → |
+| Source | Target | Relation | Label |
+|--------|--------|----------|-------|
+| n1 | n2 | → | HTTPS |
+| n2 | n3 | → | Query |
+
+**Groups/Boundaries:**
+| Label | Contains | Visual |
+|-------|----------|--------|
+| Secure Zone | n2, n3 | dashed, red |
 
 **Flow:** n1 → n2 → n3
+
+**Text Annotations & Callouts:**
+- **Callout boxes**: "Stateless operations. No data persisted in this layer."
+- **Legend items**: "🔒 Connections secured by TLS 1.3", "📊 Automated logging enabled"
+- **Notes/Disclaimers**: "All data encrypted at rest and in transit"
+- **Step descriptions**: "1. Client initiates request", "2. Gateway validates token", "3. Query executed"
 
 ## Verification
 - Extracted values: 4 revenue figures (3 clear, 1 unclear)
 - Node count: 3 listed, 3 visible ✓
 - Edge count: 2 listed, 2 visible ✓
+- Text annotations: 3 callout items, 2 legend items, 1 note, 3 steps ✓
 </output>
 </example>
 
@@ -138,6 +151,14 @@ Provide structured Markdown. **OMIT sections with no content** - never write "No
 
 **Flow:** [if sequential: n1 → n2 → n3]
 
+**Text Annotations & Callouts:**
+[CRITICAL: Capture ALL text visible within the diagram that is not a node label]
+- **Callout boxes**: [exact text from any text boxes, speech bubbles, or annotation boxes]
+- **Legend items**: [text descriptions accompanying icons or symbols]
+- **Notes/Disclaimers**: [any explanatory text, warnings, or footnotes within the diagram]
+- **Step descriptions**: [numbered steps with their full text descriptions]
+- **Boundary labels**: [full text labels on regions, zones, or boundaries]
+
 ## Images & Graphical Elements
 - **Photos/Illustrations**: [subject, context, position]
 - **Logos/Icons**: [identity, meaning, position]
@@ -188,6 +209,13 @@ Provide structured Markdown. **OMIT sections with no content** - never write "No
 
 7. **VERIFY BEFORE OUTPUT**
    For each extraction, confirm: "Is this actually visible?" → YES required
+
+8. **CAPTURE ALL TEXT IN DIAGRAMS** (commonly missed!)
+   ✅ Extract text boxes: "Stateless operations. No customer data persisted."
+   ✅ Extract legends: "🔒 Connections secured by HTTPS"
+   ✅ Extract step descriptions: "1. User initiates request from application"
+   ✅ Extract notes/disclaimers within diagram boundaries
+   ❌ Only capturing node labels while ignoring callout boxes and annotations
 </critical_rules>
 
 <verification_protocol>
@@ -198,6 +226,8 @@ Before finalizing output, complete these checks:
 □ Label accuracy: Text copied character-by-character, watched for 0/O, 1/l/I
 □ Completeness: Re-scanned image, no visual elements missed
 □ Hallucination guard: No inferred data, no "filled in" blanks
+□ TEXT WITHIN DIAGRAMS: Did I capture ALL text boxes, callouts, legends, notes, and annotations visible inside diagrams? (This is commonly missed!)
+□ Boundary/region labels: Did I capture the FULL text of any labels on boundaries, zones, or regions?
 </verification_protocol>
 
 ---

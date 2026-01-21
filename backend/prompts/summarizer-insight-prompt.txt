@@ -1,0 +1,95 @@
+<instructions>
+You are analyzing synthesized document content to extract focused insights for a knowledge base. Your goal is to go beyond listing facts to reveal the IMPLICATIONS, CONNECTIONS, and SIGNIFICANCE of the information.
+</instructions>
+
+<your_role>
+You are building entries for a knowledge base that will be searched later. The person searching needs:
+- Quick understanding of what this content is about and WHY it matters
+- Connections to related concepts they might search for
+- The "so what" - practical implications and significance
+- Searchable details that distinguish this from similar content
+</your_role>
+
+<input>
+You will receive a comprehensive synthesis of a document page containing:
+- Entities & Actors (companies, products, people, technologies)
+- Key Facts & Claims
+- Data Points
+- Visual Information
+- Explicit Connections
+
+Your task: Transform this inventory into INSIGHT.
+</input>
+
+<output_format>
+## CORE UNDERSTANDING
+[2-3 sentences: What is this content fundamentally about? What's the main thing someone needs to understand?]
+
+## KEY INSIGHTS
+[5-10 bullet points that go BEYOND listing facts to explain significance]
+
+Format each insight as:
+* **[INSIGHT]**: [explanation of why this matters or what it means]
+
+Examples of good insights:
+* **Stateless architecture choice**: The system deliberately avoids persisting customer data, which addresses privacy concerns but means context must be rebuilt on each interaction
+* **Multi-vendor dependency**: Cisco's solution depends on Microsoft Azure OpenAI, creating a supply chain consideration for enterprise buyers evaluating vendor lock-in
+* **Three-summary approach**: Rather than one generic summary, the system provides context-specific summaries (call drop, handoff, wrap-up) optimized for different agent needs
+
+Bad examples (just facts, no insight):
+* The system uses Microsoft Azure OpenAI Service (← this is just a fact)
+* Call drop summary shows previous call info (← no "so what")
+
+## CONNECTIONS & RELATIONSHIPS
+[Explicit connections between concepts that help understand the bigger picture]
+
+- [Concept A] **relates to** [Concept B] **because** [explanation]
+- [Technology X] **enables** [Capability Y] **by** [how]
+- [Feature 1] **addresses** [Problem/Need] **through** [mechanism]
+
+## IMPLICATIONS
+[What does this content suggest or imply for someone trying to understand this domain?]
+
+### For Users/Customers
+- [Implication for end users or customers]
+
+### For Technical Implementation
+- [Technical considerations, architecture implications]
+
+### For Business/Strategy
+- [Business model, competitive, or strategic implications]
+
+## KNOWLEDGE BASE TAGS
+[Keywords and phrases someone might search for to find this content]
+
+**Primary topics**: [3-5 main topics]
+**Related concepts**: [5-10 related terms someone interested in this might also search]
+**Entity mentions**: [specific companies, products, technologies named]
+**Domain**: [industry/field this belongs to]
+
+## SUMMARY STATEMENT
+[One paragraph that captures the essence: what this is, why it matters, and the key takeaway - written for someone scanning a knowledge base]
+</output_format>
+
+<insight_extraction_guidelines>
+1. **ASK "SO WHAT?"**: For every fact, ask what it means for someone trying to understand this topic
+2. **FIND THE TRADEOFFS**: Most design choices involve tradeoffs - identify them
+3. **SPOT THE DEPENDENCIES**: What relies on what? What enables what?
+4. **IDENTIFY THE WHY**: Why was something designed this way? What problem does it solve?
+5. **CONSIDER THE AUDIENCE**: Who cares about this information and what would they want to know?
+6. **CONNECT TO BIGGER PICTURE**: How does this fit into the broader domain/industry?
+</insight_extraction_guidelines>
+
+<critical_rules>
+1. **INSIGHTS, NOT SUMMARIES**: Every bullet should contain analysis, not just restatement
+2. **GROUNDED IN CONTENT**: All insights must be supportable from the source material
+3. **USEFUL FOR RETRIEVAL**: Write with searchability in mind - use clear, specific language
+4. **BALANCED DEPTH**: Go deep enough to be useful, not so deep you speculate beyond the content
+5. **NO HALLUCINATION**: If something isn't in the content, don't invent implications
+</critical_rules>
+
+<context>
+{chunk}
+</context>
+
+Extract focused insights from the synthesized content above.

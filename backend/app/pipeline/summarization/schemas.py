@@ -85,6 +85,49 @@ class SummarizerConfig:
     # Detailed extraction mode
     detailed_extraction: bool = False  # Run summarization 3x and synthesize
 
+    # Insight mode: two-stage synthesis + insight extraction for knowledge base
+    insight_mode: bool = False  # Stage 1: synthesize all context, Stage 2: extract insights
+
+
+def _is_noise_table(table: list | dict, empty_threshold: float = 0.50) -> bool:
+    """Check if a table is likely OCR noise rather than real tabular data.
+
+    Detects tables that are actually fragmented body text incorrectly
+    detected as tables by PDF extraction tools.
+
+    Args:
+        table: Table data (2D list or dict format)
+        empty_threshold: Fraction of empty cells that indicates noise (default 0.50)
+
+    Returns:
+        True if table appears to be noise, False if it looks like real data
+    """
+    total_cells = 0
+    empty_cells = 0
+
+    if isinstance(table, list):
+        for row in table:
+            if isinstance(row, list):
+                for cell in row:
+                    total_cells += 1
+                    if not str(cell).strip():
+                        empty_cells += 1
+    elif isinstance(table, dict):
+        # Dict format: {"columns": [...], "data": [[...], ...]}
+        data = table.get("data", [])
+        for row in data:
+            if isinstance(row, list):
+                for cell in row:
+                    total_cells += 1
+                    if not str(cell).strip():
+                        empty_cells += 1
+
+    if total_cells == 0:
+        return True  # Empty table is noise
+
+    empty_ratio = empty_cells / total_cells
+    return empty_ratio > empty_threshold
+
 
 @dataclass
 class PageContext:
@@ -107,6 +150,8 @@ class PageContext:
         """Build comprehensive context string for summarization.
 
         Combines text, tables, and image_text into a single context.
+        Filters out noise tables (>50% empty cells) that are typically
+        OCR artifacts from PDF extraction.
         """
         sections = []
 
@@ -115,9 +160,14 @@ class PageContext:
             sections.append(self.text.strip())
 
         # Table data (supports both dict format and 2D array format)
+        # Filter out noise tables that are just fragmented OCR text
         if self.tables:
             table_texts = []
             for i, table in enumerate(self.tables):
+                # Skip noise tables (>50% empty cells)
+                if _is_noise_table(table):
+                    continue
+
                 # Handle 2D array format (from PPTX): [["H1", "H2"], ["A", "B"]]
                 if isinstance(table, list):
                     if len(table) >= 1:
@@ -162,6 +212,17 @@ class SummaryResult:
     summary_notes_1: Optional[list[str]] = None
     summary_notes_2: Optional[list[str]] = None
     summary_notes_3: Optional[list[str]] = None
+
+    # Insight mode results (when insight_mode=True)
+    # Stage 1: Comprehensive synthesis of all context
+    context_synthesis: Optional[str] = None
+    # Stage 2: Focused insights for knowledge base
+    core_understanding: Optional[str] = None
+    key_insights: Optional[list[str]] = None
+    connections: Optional[list[str]] = None
+    implications: Optional[dict[str, list[str]]] = None  # {"users": [...], "technical": [...], "business": [...]}
+    knowledge_tags: Optional[dict[str, list[str]]] = None  # {"primary": [...], "related": [...], "entities": [...]}
+    summary_statement: Optional[str] = None
 
     # Token usage metrics (total across all API calls for this page)
     prompt_tokens: int = 0
