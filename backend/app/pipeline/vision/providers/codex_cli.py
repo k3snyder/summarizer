@@ -6,10 +6,13 @@ Classification always returns True (CLI handles full extraction).
 """
 
 import base64
+import io
 import logging
 import tempfile
 from pathlib import Path
 from typing import Optional
+
+from PIL import Image
 
 from app.pipeline.cli import CLIExecutionError, CLIExecutorBase, get_cli_executor
 from app.pipeline.vision.providers.base import VisionProviderBase
@@ -100,16 +103,21 @@ class CLIVisionProvider(VisionProviderBase):
                 temp_dir,
             )
 
-            # Decode base64 and save as PNG file directly
-            # Handle potential data URL prefix (data:image/png;base64,...)
+            # Decode base64 and save as proper PNG file
+            # Source data is JPEG from extraction stage - convert to actual PNG
+            # so file extension matches format and Codex can view correctly
             if "," in image_base64 and image_base64.startswith("data:"):
                 image_base64 = image_base64.split(",", 1)[1]
 
             image_bytes = base64.b64decode(image_base64)
-            with open(temp_file, "wb") as f:
-                f.write(image_bytes)
+            img = Image.open(io.BytesIO(image_bytes))
+            img.save(temp_file, format="PNG")
 
-            logger.debug("Saved image to %s (size: %d bytes)", temp_file, len(image_bytes))
+            file_size = temp_file.stat().st_size
+            logger.debug(
+                "Saved image to %s (size: %d bytes, dimensions: %dx%d)",
+                temp_file, file_size, img.width, img.height,
+            )
 
             # Build prompt - simple and direct
             prompt = f"""Analyze the image file {temp_file.name} in the current directory.

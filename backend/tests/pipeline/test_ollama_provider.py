@@ -35,10 +35,12 @@ class TestOllamaClassify:
         """Test that classify returns a ClassificationResult."""
         from app.pipeline.vision.schemas import ClassificationResult
 
-        # Mock the HTTP response
+        # Mock the HTTP response (native Ollama API format)
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": "YES"}}]
+            "message": {"role": "assistant", "content": "YES"},
+            "prompt_eval_count": 100,
+            "eval_count": 5,
         }
         mock_response.raise_for_status = MagicMock()
 
@@ -63,7 +65,9 @@ class TestOllamaClassify:
         """Test that classify returns False for NO response."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": "NO"}}]
+            "message": {"role": "assistant", "content": "NO"},
+            "prompt_eval_count": 100,
+            "eval_count": 5,
         }
         mock_response.raise_for_status = MagicMock()
 
@@ -98,13 +102,15 @@ class TestOllamaClassify:
             assert "Connection" in result.error
 
     @pytest.mark.asyncio
-    async def test_ollama_uses_correct_endpoint(
+    async def test_ollama_uses_native_api_endpoint(
         self, ollama_provider, sample_base64_image
     ):
-        """Test that correct OpenAI-compatible endpoint is used."""
+        """Test that native /api/chat endpoint is used with images field."""
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "choices": [{"message": {"content": "YES"}}]
+            "message": {"role": "assistant", "content": "YES"},
+            "prompt_eval_count": 100,
+            "eval_count": 5,
         }
         mock_response.raise_for_status = MagicMock()
 
@@ -117,10 +123,13 @@ class TestOllamaClassify:
                 sample_base64_image, page_number=1, chunk_id="chunk_1"
             )
 
-            # Verify POST was called with correct endpoint
+            # Verify POST was called with native API endpoint
             mock_post.assert_called_once()
             call_args = mock_post.call_args
-            assert "/chat/completions" in str(call_args)
+            assert "/api/chat" in str(call_args)
+            # Verify images field is in the payload
+            payload = call_args[1]["json"]
+            assert "images" in payload["messages"][0]
 
 
 class TestOllamaExtract:
@@ -135,9 +144,9 @@ class TestOllamaExtract:
 
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "choices": [
-                {"message": {"content": "## Visual Elements\nChart showing data"}}
-            ]
+            "message": {"role": "assistant", "content": "## Visual Elements\nChart showing data"},
+            "prompt_eval_count": 500,
+            "eval_count": 200,
         }
         mock_response.raise_for_status = MagicMock()
 

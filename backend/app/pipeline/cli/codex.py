@@ -68,6 +68,54 @@ def _parse_jsonl_output(stdout: str) -> str:
     return "\n".join(content_parts).strip()
 
 
+def _log_codex_actions(stdout: str) -> None:
+    """Log command_execution and reasoning events from JSONL output.
+
+    Provides visibility into what Codex actually did - whether it opened
+    files, ran commands, or just responded directly.
+
+    Args:
+        stdout: Raw JSONL output from codex exec
+    """
+    actions = []
+    reasoning_count = 0
+
+    for line in stdout.strip().split("\n"):
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+            event_type = event.get("type", "")
+
+            if event_type == "item.completed":
+                item = event.get("item", {})
+                item_type = item.get("type", "")
+
+                if item_type == "command_execution":
+                    cmd = item.get("command", "")
+                    exit_code = item.get("exit_code", None)
+                    actions.append(f"cmd={cmd!r} exit_code={exit_code}")
+
+                elif item_type == "reasoning":
+                    reasoning_count += 1
+                    text = item.get("text", "")
+                    if text:
+                        actions.append(f"reasoning={text!r}")
+
+        except json.JSONDecodeError:
+            continue
+
+    if actions:
+        logger.info(
+            "[CODEX_ACTIONS] actions=%d reasoning=%d details: %s",
+            len(actions) - reasoning_count,
+            reasoning_count,
+            " | ".join(actions),
+        )
+    else:
+        logger.info("[CODEX_ACTIONS] no_commands_executed (direct response only)")
+
+
 class CodexCLIExecutor(CLIExecutorBase):
     """Codex CLI executor implementation.
 
@@ -235,6 +283,9 @@ class CodexCLIExecutor(CLIExecutorBase):
 
         # Parse JSONL output
         response = _parse_jsonl_output(result.stdout)
+
+        # CODEX_ACTIONS - Log command_execution and reasoning events
+        _log_codex_actions(result.stdout)
 
         if not response:
             # CODEX_EMPTY_RESPONSE - Log warning when parsed response is empty

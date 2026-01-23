@@ -478,7 +478,7 @@ class DocumentExtractor:
     def _pil_image_to_base64(self, img) -> str:
         """Convert PIL Image to base64-encoded JPEG string."""
         buffered = BytesIO()
-        img.save(buffered, format="JPEG")
+        img.save(buffered, format="JPEG", quality=90)
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
     async def _extract_pptx(

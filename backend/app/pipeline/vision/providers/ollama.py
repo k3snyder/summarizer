@@ -1,14 +1,17 @@
 """
 Ollama vision provider implementation.
-Uses OpenAI-compatible /v1/chat/completions endpoint.
+Uses native /api/chat endpoint with images field for reliable image processing.
 """
 
+import logging
 from pathlib import Path
 from typing import Optional
 
 import httpx
 
 from app.config import settings
+
+logger = logging.getLogger("app.pipeline.vision.ollama")
 from app.pipeline.vision.providers.base import VisionProviderBase
 from app.pipeline.vision.schemas import ClassificationResult, ExtractionResult
 
@@ -29,18 +32,15 @@ def _load_prompt(prompt_name: str) -> str:
         return f.read()
 
 
-def _prepare_image_data_uri(base64_string: str) -> str:
-    """Prepare base64 string for OpenAI-compatible API."""
-    # Remove existing data URI prefix if present
+def _strip_base64_prefix(base64_string: str) -> str:
+    """Strip data URI prefix from base64 string if present."""
     if "," in base64_string and base64_string.startswith("data:"):
-        base64_string = base64_string.split(",", 1)[1]
-
-    # Return with proper data URI prefix
-    return f"data:image/jpeg;base64,{base64_string}"
+        return base64_string.split(",", 1)[1]
+    return base64_string
 
 
 class OllamaVisionProvider(VisionProviderBase):
-    """Ollama vision provider using OpenAI-compatible API."""
+    """Ollama vision provider using native /api/chat endpoint."""
 
     def __init__(
         self,
@@ -53,10 +53,16 @@ class OllamaVisionProvider(VisionProviderBase):
             base_url: Ollama API base URL (default: http://localhost:11434/v1)
             model: Model to use (default: ministral-3:latest)
         """
-        self.base_url = base_url or settings.ollama_base_url
+        configured_url = base_url or settings.ollama_base_url
         self.model = model or settings.vision_model
 
-        # Create async HTTP client
+        # Derive native API base URL by stripping /v1 suffix
+        # e.g., http://192.168.10.3:11436/v1 -> http://192.168.10.3:11436
+        self.base_url = configured_url.rstrip("/")
+        if self.base_url.endswith("/v1"):
+            self.base_url = self.base_url[:-3]
+
+        # Create async HTTP client for native Ollama API
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=settings.api_request_timeout,
@@ -75,9 +81,13 @@ class OllamaVisionProvider(VisionProviderBase):
 
     @property
     def extract_prompt(self) -> str:
-        """Load extraction prompt lazily."""
+        """Load extraction prompt lazily.
+
+        Uses simplified prompt (vision-extract-ollama.txt) to avoid
+        overwhelming the model's vision attention with long examples.
+        """
         if self._extract_prompt is None:
-            self._extract_prompt = _load_prompt("vision-extract.txt")
+            self._extract_prompt = _load_prompt("vision-extract-ollama.txt")
         return self._extract_prompt
 
     async def classify(
@@ -85,42 +95,39 @@ class OllamaVisionProvider(VisionProviderBase):
     ) -> ClassificationResult:
         """Classify whether an image contains graphical content.
 
-        Uses a quick YES/NO prompt to determine if visual elements exist.
+        Uses native Ollama /api/chat with images field.
         """
-        image_data_uri = _prepare_image_data_uri(image_base64)
+        image_data = _strip_base64_prefix(image_base64)
 
         payload = {
             "model": self.model,
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": image_data_uri},
-                        },
-                        {"type": "text", "text": self.classifier_prompt},
-                    ],
+                    "content": self.classifier_prompt,
+                    "images": [image_data],
                 }
             ],
-            "max_tokens": 10,  # Only need YES/NO
+            "stream": False,
+            "options": {
+                "num_predict": 10,  # Only need YES/NO
+            },
         }
 
         for attempt in range(settings.api_max_retries):
             try:
-                response = await self._client.post("/chat/completions", json=payload)
+                response = await self._client.post("/api/chat", json=payload)
                 response.raise_for_status()
 
                 data = response.json()
-                result_text = data["choices"][0]["message"]["content"].strip().upper()
+                result_text = data["message"]["content"].strip().upper()
 
                 has_graphics = result_text.startswith("YES")
 
-                # Extract token usage if available
-                usage = data.get("usage", {})
-                prompt_tokens = usage.get("prompt_tokens", 0) or 0
-                completion_tokens = usage.get("completion_tokens", 0) or 0
-                total_tokens = usage.get("total_tokens", 0) or 0
+                # Native API token fields
+                prompt_tokens = data.get("prompt_eval_count", 0) or 0
+                completion_tokens = data.get("eval_count", 0) or 0
+                total_tokens = prompt_tokens + completion_tokens
 
                 return ClassificationResult(
                     page_number=page_number,
@@ -133,7 +140,6 @@ class OllamaVisionProvider(VisionProviderBase):
 
             except httpx.ConnectError as e:
                 if attempt == settings.api_max_retries - 1:
-                    # Default to True on connection error to avoid missing content
                     return ClassificationResult(
                         page_number=page_number,
                         chunk_id=chunk_id,
@@ -149,7 +155,6 @@ class OllamaVisionProvider(VisionProviderBase):
                         error=f"Error: {str(e)}",
                     )
 
-        # Should not reach here, but default to True for safety
         return ClassificationResult(
             page_number=page_number,
             chunk_id=chunk_id,
@@ -160,41 +165,49 @@ class OllamaVisionProvider(VisionProviderBase):
     async def extract(
         self, image_base64: str, page_number: int, chunk_id: str
     ) -> ExtractionResult:
-        """Extract visual content from an image."""
-        image_data_uri = _prepare_image_data_uri(image_base64)
+        """Extract visual content from an image using native Ollama API."""
+        image_data = _strip_base64_prefix(image_base64)
+
+        logger.info(
+            "[OLLAMA_EXTRACT_START] page=%d, model=%s, base_url=%s, image_base64_len=%d, prompt_len=%d",
+            page_number, self.model, self.base_url, len(image_data), len(self.extract_prompt),
+        )
 
         payload = {
             "model": self.model,
             "messages": [
                 {
                     "role": "user",
-                    "content": [
-                        {
-                            "type": "image_url",
-                            "image_url": {"url": image_data_uri},
-                        },
-                        {"type": "text", "text": self.extract_prompt},
-                    ],
+                    "content": self.extract_prompt,
+                    "images": [image_data],
                 }
             ],
-            "temperature": 0.1,  # Low temp for factual extraction
-            "max_tokens": 4000,  # Sufficient for detailed structured output
-            "seed": 42,  # Reproducible results
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 4000,
+                "seed": 42,
+            },
         }
 
         for attempt in range(settings.api_max_retries):
             try:
-                response = await self._client.post("/chat/completions", json=payload)
+                response = await self._client.post("/api/chat", json=payload)
                 response.raise_for_status()
 
                 data = response.json()
-                image_text = data["choices"][0]["message"]["content"]
+                image_text = data["message"]["content"]
 
-                # Extract token usage if available
-                usage = data.get("usage", {})
-                prompt_tokens = usage.get("prompt_tokens", 0) or 0
-                completion_tokens = usage.get("completion_tokens", 0) or 0
-                total_tokens = usage.get("total_tokens", 0) or 0
+                # Native API token fields
+                prompt_tokens = data.get("prompt_eval_count", 0) or 0
+                completion_tokens = data.get("eval_count", 0) or 0
+                total_tokens = prompt_tokens + completion_tokens
+
+                logger.info(
+                    "[OLLAMA_EXTRACT_COMPLETE] page=%d, prompt_tokens=%d, completion_tokens=%d, response_len=%d",
+                    page_number, prompt_tokens, completion_tokens, len(image_text) if image_text else 0,
+                )
+                logger.debug("[OLLAMA_EXTRACT_RESPONSE] page=%d, response=%s", page_number, image_text)
 
                 return ExtractionResult(
                     page_number=page_number,
