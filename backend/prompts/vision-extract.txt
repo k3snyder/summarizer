@@ -17,98 +17,227 @@ Analyze this document page image and extract ALL visual information that would n
 - Do not guess counts before observing. List items first, then count.
 </guardrails>
 
+<examples>
+<example>
+<input>
+Document page with a bar chart showing quarterly revenue and an architecture diagram with callout boxes.
+</input>
+<output>
+## Visual Elements Detected
+bar chart, architecture diagram, callouts
+
+## Charts & Data Visualizations
+
+### Chart: Q3 2024 Revenue by Region
+- **Type**: Horizontal bar chart
+- **Axes**: X: Revenue ($M), 0-50; Y: Region names
+
+| Region | Revenue |
+|--------|---------|
+| North America | $42.3M |
+| EMEA | $31.7M |
+| APAC | $28.1M |
+| LATAM | [UNCLEAR: ~$12-15M] |
+
+- **Legend**: None (single series)
+- **Insights**: NA leads at $42.3M; LATAM value partially obscured
+
+## Diagrams & Flowcharts
+
+### Diagram: System Architecture
+- **Type**: Architecture diagram
+
+**Nodes:**
+| ID | Label | Type | Visual |
+|----|-------|------|--------|
+| n1 | Client App | process | rectangle, blue |
+| n2 | API Gateway | process | rectangle, green |
+| n3 | Database | data store | cylinder, gray |
+
+**Edges:**
+| Source | Target | Relation | Label |
+|--------|--------|----------|-------|
+| n1 | n2 | → | HTTPS |
+| n2 | n3 | → | Query |
+
+**Groups/Boundaries:**
+| Label | Contains | Visual |
+|-------|----------|--------|
+| Secure Zone | n2, n3 | dashed, red |
+
+**Flow:** n1 → n2 → n3
+
+**Text Annotations & Callouts:**
+- **Callout boxes**: "Stateless operations. No data persisted in this layer."
+- **Legend items**: "🔒 Connections secured by TLS 1.3", "📊 Automated logging enabled"
+- **Notes/Disclaimers**: "All data encrypted at rest and in transit"
+- **Step descriptions**: "1. Client initiates request", "2. Gateway validates token", "3. Query executed"
+
+## Verification
+- Extracted values: 4 revenue figures (3 clear, 1 unclear)
+- Node count: 3 listed, 3 visible ✓
+- Edge count: 2 listed, 2 visible ✓
+- Text annotations: 3 callout items, 2 legend items, 1 note, 3 steps ✓
+</output>
+</example>
+
+<example>
+<input>
+Document page with body text and a company logo. No charts or diagrams.
+</input>
+<output>
+## Visual Elements Detected
+logo
+
+## Images & Graphical Elements
+- **Logo**: Acme Corp logo, top-left header, ~100x40px
+
+## Verification
+- Visual elements: 1 logo identified, 1 visible ✓
+</output>
+</example>
+</examples>
+
 ---
 
 <output_format>
-Provide your response as structured Markdown with the following sections. If a section has no content, write "None detected."
+Provide structured Markdown. **OMIT sections with no content** - never write "None detected."
 
-## Visual Elements Summary
-[Brief overview of visual content types found on this page]
+## Visual Elements Detected
+[One line: list types found - chart, diagram, table, image, or "none"]
 
 ## Charts & Data Visualizations
-[For each chart/graph found, provide:]
-- **Type**: [bar chart, line graph, pie chart, scatter plot, histogram, etc.]
-- **Title**: [chart title if visible]
-- **Axes**: [X-axis label/range, Y-axis label/range]
-- **Data Points**: [specific numerical values, trends, patterns]
-- **Legend**: [legend items and their color/symbol meanings]
-- **Key Insights**: [notable trends, outliers, comparisons, peak values]
 
-**Text Annotations & Callouts:**
-- **Callout boxes**: "[exact text from any callout or annotation box]"
-- **Legend items**: "[text next to any icon or symbol in the legend]"
-- **Notes/Disclaimers**: "[any footnotes or disclaimers within the diagram]"
-- **Step descriptions**: "1. [first step text]", "2. [second step text]"
+### Chart: [Title]
+- **Type**: [bar/line/pie/scatter/histogram/area]
+- **Axes**: [X: label, range; Y: label, range]
 
-## Tables with Visual Formatting
-[For each table, describe:]
-- **Structure**: [rows x columns, column headers, row headers]
-- **Visual Elements**: [background colors, text highlights, borders, merged cells]
-- **Numeric Data**: [extract precise values from important cells]
-- **Visual Hierarchy**: [emphasized rows/columns, color coding schemes]
-- **Notable Patterns**: [sorted data, grouped sections, totals/subtotals]
+| [X-Label] | [Y-Label] |
+|-----------|-----------|
+| [exact value] | [exact value] |
+
+- **Legend**: [items and meanings]
+- **Insights**: [trends, peaks, comparisons - ONLY from visible data]
+
+## Tables
+
+### Table: [Title or context]
+| Col 1 | Col 2 | Col 3 |
+|-------|-------|-------|
+| value | value | value |
+
+- **Visual formatting**: [colors, highlights, merged cells]
+- **Patterns**: [sorting, grouping, totals]
 
 ## Diagrams & Flowcharts
-[For each diagram, describe:]
-- **Type**: [flowchart, process diagram, network diagram, org chart, Venn diagram, etc.]
-- **Components**: [boxes, shapes, nodes with their exact text labels]
-- **Connections**: [arrows, lines, flow direction, relationship types]
-- **Relationships**: [how elements connect, dependencies, hierarchies]
-- **Decision Points**: [branching logic, conditions, outcomes]
+
+### Diagram: [Title]
+- **Type**: [flowchart/architecture/network/sequence/org chart/process]
+
+**Nodes:**
+| ID | Label | Type | Visual |
+|----|-------|------|--------|
+| n1 | [exact text] | [category] | [shape/color] |
+
+**Edges:**
+| Source | Target | Relation | Label |
+|--------|--------|----------|-------|
+| n1 | n2 | [verb] | [text] |
+
+**Groups/Boundaries:**
+| Label | Contains | Visual |
+|-------|----------|--------|
+| [name] | n1, n2 | [dashed/solid, color] |
+
+**Flow:** [if sequential: n1 → n2 → n3]
+
+**Text Annotations & Callouts:**
+[CRITICAL: Capture ALL text visible within the diagram that is not a node label]
+- **Callout boxes**: [exact text from any text boxes, speech bubbles, or annotation boxes]
+- **Legend items**: [text descriptions accompanying icons or symbols]
+- **Notes/Disclaimers**: [any explanatory text, warnings, or footnotes within the diagram]
+- **Step descriptions**: [numbered steps with their full text descriptions]
+- **Boundary labels**: [full text labels on regions, zones, or boundaries]
 
 ## Images & Graphical Elements
-- **Photos/Illustrations**: [describe subject matter, context, relevance]
-- **Logos/Icons**: [identify company/brand logos, symbolic icons]
-- **Annotations**: [handwritten notes, highlights, underlining, stamps]
-- **Layout Elements**: [colored headers, sidebars, callout boxes, dividers, borders]
-- **Visual Emphasis**: [bolded sections, boxed content, shaded areas]
+- **Photos/Illustrations**: [subject, context, position]
+- **Logos/Icons**: [identity, meaning, position]
+- **Annotations**: [highlights, handwriting, stamps]
+- **Layout**: [headers, sidebars, callouts]
 
-## Numeric & Statistical Data
-[Extract all visible numbers, being PRECISE:]
-- **Percentages**: [e.g., "23.5%", "91%"]
-- **Currency/Amounts**: [e.g., "$42,500", "€1.2M"]
-- **Measurements**: [e.g., "150 km", "5.2 kg", "98°F"]
-- **Statistics**: [mean, median, counts, ratios]
-- **Dates/Times**: [specific dates, time periods, quarters]
-- **Ranges**: [e.g., "15-20%", "Q1-Q3 2024"]
+## Numeric Data
+[ALL visible numbers with context]
+- **Percentages**: [value with label]
+- **Currency**: [amount with context]
+- **Measurements**: [value with unit]
+- **Dates**: [specific dates/periods]
+- **Counts**: [quantities with context]
 
-## Data Quality Notes
-[CRITICAL - Be explicit about uncertainty:]
-- **Unclear/Blurry Areas**: [describe what content is uncertain - DO NOT GUESS OR HALLUCINATE]
-- **Partial Information**: [note if data appears cut off, cropped, or incomplete]
-- **Low Confidence Extractions**: [mark any uncertain values with [UNCLEAR: ~approximate value]]
-- **Missing Context**: [note if labels/legends are cut off or missing]
+## Verification
+[Required - confirm your extractions]
+- Extracted values: [count] items, [count] clearly visible, [count] unclear
+- Nodes/rows counted: [X] listed, [X] visible
+- Flagged items: [list any UNCLEAR markers]
 </output_format>
+
 ---
 
-**CRITICAL EXTRACTION RULES:**
+<critical_rules>
+1. **EXACT VALUES ONLY**
+   ✅ "Q1: $42,500, Q2: $51,200"
+   ❌ "Sales showing growth trend"
 
-1. **Be Specific, Not Generic**: Extract EXACT values, not descriptions
-   - ✅ GOOD: "Q1 Sales: $42,500, Q2 Sales: $51,200"
-   - ❌ BAD: "Sales data showing growth trend"
+2. **PRESERVE ORIGINAL TEXT**
+   ✅ Copy labels, titles verbatim
+   ❌ Paraphrase or interpret
 
-2. **Preserve Exact Numbers**: For charts/tables, provide PRECISE values or clearly marked estimates
-   - ✅ GOOD: "January: 23%, February: 31%, March: 28%"
-   - ✅ ACCEPTABLE: "January: [UNCLEAR: ~20-25%]" (if blurry)
-   - ❌ BAD: "increasing trend across months"
+3. **NEVER HALLUCINATE**
+   ✅ "[UNCLEAR: ~20-25%]" or omit
+   ❌ Inventing plausible numbers
 
-3. **Never Hallucinate**: If text/numbers are unclear, blurry, or missing, explicitly state this
-   - ✅ GOOD: "[UNCLEAR: value appears to be ~XX but image is blurry]"
-   - ❌ BAD: Making up plausible-looking numbers
+4. **COUNT AFTER LISTING**
+   ✅ "Nodes: [list all]. Total: 4"
+   ❌ "The four components are..."
 
-4. **Preserve Original Wording**: Use exact labels, titles, legends as they appear
-   - Don't paraphrase or interpret - copy verbatim
+5. **STRUCTURE OVER PROSE**
+   ✅ Node-edge tables for diagrams
+   ❌ Paragraph descriptions of connections
 
-5. **Use Structured Format**: Organize with bullet points, numbered lists, tables within Markdown
+6. **REPORT, DON'T INTERPRET**
+   ✅ "Red line shows 15% increase"
+   ❌ "Company is performing well"
 
-6. **No Interpretation Beyond Visual**: Report what is visible, not what it might mean
-   - ✅ GOOD: "Red line shows 15% increase from Q1 to Q2"
-   - ❌ BAD: "Company is performing well" (interpretation)
+7. **VERIFY BEFORE OUTPUT**
+   For each extraction, confirm: "Is this actually visible?" → YES required
 
-7. **Handle Text-Only Pages**: If the page contains no significant visual elements beyond plain text, respond ONLY with:
+8. **CAPTURE ALL TEXT IN DIAGRAMS** (commonly missed!)
+   ✅ Extract text boxes: "Stateless operations. No customer data persisted."
+   ✅ Extract legends: "🔒 Connections secured by HTTPS"
+   ✅ Extract step descriptions: "1. User initiates request from application"
+   ✅ Extract notes/disclaimers within diagram boundaries
+   ❌ Only capturing node labels while ignoring callout boxes and annotations
+</critical_rules>
+
+<verification_protocol>
+Before finalizing output, complete these checks:
+
+□ Binary fact-check: Every value I listed is visible in the image
+□ Count verification: Items counted AFTER listing, counts match
+□ Label accuracy: Text copied character-by-character, watched for 0/O, 1/l/I
+□ Completeness: Re-scanned image, no visual elements missed
+□ Hallucination guard: No inferred data, no "filled in" blanks
+□ TEXT WITHIN DIAGRAMS: Did I capture ALL text boxes, callouts, legends, notes, and annotations visible inside diagrams? (This is commonly missed!)
+□ Boundary/region labels: Did I capture the FULL text of any labels on boundaries, zones, or regions?
+</verification_protocol>
+
+---
+
+<text_only_page>
+If no significant visual elements exist beyond plain text:
 
 **No significant visual elements detected.**
+</text_only_page>
 
----
-
-**DO NOT OUTPUT ANYTHING ELSE** beyond the structured markdown format above. Do not add conversational text, apologies, or explanations outside the specified sections.
+<final_constraint>
+OUTPUT ONLY the structured markdown above. No conversational text, apologies, or explanations outside the specified sections.
+</final_constraint>
