@@ -14,14 +14,19 @@ class TestVisionProvider:
         from app.pipeline.vision.schemas import VisionProvider
         assert VisionProvider.OLLAMA.value == "ollama"
 
+    def test_llama_cpp_provider_exists(self):
+        from app.pipeline.vision.schemas import VisionProvider
+        assert VisionProvider.LLAMA_CPP.value == "llama_cpp"
+
     def test_openai_provider_exists(self):
         from app.pipeline.vision.schemas import VisionProvider
         assert VisionProvider.OPENAI.value == "openai"
 
-    def test_provider_enum_has_three_values(self):
+    def test_provider_enum_has_five_values(self):
         from app.pipeline.vision.schemas import VisionProvider
-        assert len(VisionProvider) == 3
+        assert len(VisionProvider) == 5
         assert VisionProvider.GEMINI.value == "gemini"
+        assert VisionProvider.CODEX_CLI.value == "codex"
 
 
 class TestVisionConfig:
@@ -30,8 +35,8 @@ class TestVisionConfig:
     def test_vision_config_default_provider(self):
         from app.pipeline.vision.schemas import VisionConfig, VisionProvider
         config = VisionConfig()
-        assert config.classifier_provider == VisionProvider.OLLAMA
-        assert config.extractor_provider == VisionProvider.OLLAMA
+        assert config.classifier_provider == VisionProvider.LLAMA_CPP
+        assert config.extractor_provider == VisionProvider.LLAMA_CPP
 
     def test_vision_config_default_model(self):
         from app.pipeline.vision.schemas import VisionConfig
@@ -43,6 +48,7 @@ class TestVisionConfig:
         from app.pipeline.vision.schemas import VisionConfig
         config = VisionConfig()
         assert config.batch_size == 5
+        assert config.classifier_batch_size is None
 
     def test_vision_config_custom_values(self):
         from app.pipeline.vision.schemas import VisionConfig, VisionProvider
@@ -52,6 +58,7 @@ class TestVisionConfig:
             extractor_provider=VisionProvider.OPENAI,
             extractor_model="gpt-4o",
             batch_size=3,
+            classifier_batch_size=1,
             skip_classification=True,
         )
         assert config.classifier_provider == VisionProvider.OLLAMA
@@ -59,12 +66,22 @@ class TestVisionConfig:
         assert config.extractor_provider == VisionProvider.OPENAI
         assert config.extractor_model == "gpt-4o"
         assert config.batch_size == 3
+        assert config.classifier_batch_size == 1
         assert config.skip_classification is True
 
     def test_vision_config_ollama_base_url(self):
         from app.pipeline.vision.schemas import VisionConfig
         config = VisionConfig(ollama_base_url="http://localhost:11434")
         assert config.ollama_base_url == "http://localhost:11434"
+
+    def test_vision_config_llama_cpp_settings(self):
+        from app.pipeline.vision.schemas import VisionConfig
+        config = VisionConfig(
+            llama_cpp_base_url="http://localhost:11439/v1",
+            llama_cpp_api_key="sk-test",
+        )
+        assert config.llama_cpp_base_url == "http://localhost:11439/v1"
+        assert config.llama_cpp_api_key == "sk-test"
 
 
 class TestClassificationResult:

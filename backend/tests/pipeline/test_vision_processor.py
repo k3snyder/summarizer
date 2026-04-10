@@ -167,6 +167,7 @@ class TestVisionProcessorProvider:
         from app.pipeline.vision.processor import VisionProcessor
         from app.pipeline.vision.schemas import VisionConfig, VisionProvider
         from app.pipeline.vision.providers.ollama import OllamaVisionProvider
+        from app.pipeline.vision.providers.llama_cpp import LlamaCppVisionProvider
         from app.pipeline.vision.providers.openai import OpenAIVisionProvider
 
         # Test Ollama for both
@@ -178,15 +179,29 @@ class TestVisionProcessorProvider:
         assert isinstance(processor_ollama._classifier_provider, OllamaVisionProvider)
         assert isinstance(processor_ollama._extractor_provider, OllamaVisionProvider)
 
-        # Test mixed providers
+        # Test llama.cpp classifier with OpenAI extractor
         config_mixed = VisionConfig(
+            classifier_provider=VisionProvider.LLAMA_CPP,
+            classifier_model="model.gguf",
+            extractor_provider=VisionProvider.OPENAI,
+            extractor_model="gpt-4.1-mini",
+            llama_cpp_base_url="http://localhost:11439/v1",
+            llama_cpp_api_key="sk-test",
+            openai_api_key="test-key",
+        )
+        processor_mixed = VisionProcessor(config_mixed)
+        assert isinstance(processor_mixed._classifier_provider, LlamaCppVisionProvider)
+        assert isinstance(processor_mixed._extractor_provider, OpenAIVisionProvider)
+
+        # Test Ollama classifier with OpenAI extractor
+        config_openai = VisionConfig(
             classifier_provider=VisionProvider.OLLAMA,
             extractor_provider=VisionProvider.OPENAI,
             openai_api_key="test-key",
         )
-        processor_mixed = VisionProcessor(config_mixed)
-        assert isinstance(processor_mixed._classifier_provider, OllamaVisionProvider)
-        assert isinstance(processor_mixed._extractor_provider, OpenAIVisionProvider)
+        processor_openai = VisionProcessor(config_openai)
+        assert isinstance(processor_openai._classifier_provider, OllamaVisionProvider)
+        assert isinstance(processor_openai._extractor_provider, OpenAIVisionProvider)
 
 
 class TestVisionProcessorErrorHandling:
@@ -273,4 +288,47 @@ class TestVisionProcessorConcurrency:
             await processor.classify_pages(sample_pages)
 
             # With batch_size=1, max concurrent should be 1
+            assert max_concurrent == 1
+
+    @pytest.mark.asyncio
+    async def test_classifier_batch_size_overrides_shared_batch_size(
+        self, sample_pages, mock_provider
+    ):
+        """Test that classifier batching can be limited independently."""
+        from app.pipeline.vision.processor import VisionProcessor
+        from app.pipeline.vision.schemas import VisionConfig, VisionProvider
+        import asyncio
+
+        config = VisionConfig(
+            classifier_provider=VisionProvider.LLAMA_CPP,
+            extractor_provider=VisionProvider.LLAMA_CPP,
+            batch_size=5,
+            classifier_batch_size=1,
+        )
+
+        concurrent_calls = 0
+        max_concurrent = 0
+
+        async def track_concurrency(img, pn, cid):
+            nonlocal concurrent_calls, max_concurrent
+            from app.pipeline.vision.schemas import ClassificationResult
+
+            concurrent_calls += 1
+            max_concurrent = max(max_concurrent, concurrent_calls)
+            await asyncio.sleep(0.01)
+            concurrent_calls -= 1
+            return ClassificationResult(
+                page_number=pn,
+                chunk_id=cid,
+                has_graphics=True,
+            )
+
+        mock_provider.classify = track_concurrency
+
+        with patch.object(
+            VisionProcessor, "_create_provider", return_value=mock_provider
+        ):
+            processor = VisionProcessor(config)
+            await processor.classify_pages(sample_pages)
+
             assert max_concurrent == 1

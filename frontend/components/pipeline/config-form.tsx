@@ -49,6 +49,7 @@ const DPI_OPTIONS: { value: PdfImageDpi; label: string }[] = [
 
 const VISION_MODE_OPTIONS: { value: VisionMode; label: string; description: string }[] = [
   { value: "none", label: "None", description: "Skip vision processing" },
+  { value: "llama_cpp", label: "llama.cpp", description: "locally hosted model" },
   { value: "ollama", label: "Ollama", description: "Locally hosted model" },
   { value: "openai", label: "OpenAI", description: "Cloud hosted model" },
   { value: "gemini", label: "Gemini", description: "Google Gemini Flash" },
@@ -67,6 +68,7 @@ const SUMMARIZER_MODE_OPTIONS: { value: SummarizerMode; label: string; descripti
 ];
 
 const SUMMARIZER_PROVIDER_OPTIONS: { value: SummarizerProvider; label: string; description: string }[] = [
+  { value: "llama_cpp", label: "llama.cpp", description: "Locally hosted model" },
   { value: "ollama", label: "Ollama", description: "Locally hosted model" },
   { value: "openai", label: "OpenAI", description: "Cloud hosted model" },
   { value: "codex", label: "Codex CLI", description: "OpenAI Codex via CLI" },
@@ -393,7 +395,7 @@ export function ConfigForm({ onSubmit, initialConfig, filename }: ConfigFormProp
           checked={visionEnabled}
           onCheckedChange={(checked) => {
             if (checked) {
-              updateConfig("vision_mode", "ollama");
+              updateConfig("vision_mode", "llama_cpp");
             } else {
               updateConfig("vision_mode", "none");
               setAdvancedVisionConfig(false);
@@ -496,9 +498,9 @@ export function ConfigForm({ onSubmit, initialConfig, filename }: ConfigFormProp
                   config.vision_extractor_mode || config.vision_mode,
                   (value) => {
                     updateConfig("vision_extractor_mode", value);
-                    // When codex is selected for extraction, force classifier to ollama
-                    if (value === "codex") {
-                      updateConfig("vision_classifier_mode", "ollama");
+                    // CLI extractors do not classify pages, so keep classification on llama.cpp.
+                    if (value === "codex" || value === "claude") {
+                      updateConfig("vision_classifier_mode", "llama_cpp");
                     }
                   },
                   true

@@ -10,7 +10,7 @@ import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Callable, Awaitable
+from typing import Any, Optional, Callable, Awaitable
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI, OpenAIError
@@ -99,6 +99,10 @@ class SummarizeService:
 
         # Create clients based on provider
         self._provider = config.provider
+        self._thought_prefix_pattern = re.compile(
+            r"^(?:<\|channel\>thought\s*<channel\|>\s*)+",
+            flags=re.IGNORECASE,
+        )
 
         if self._provider == "openai":
             # Use OpenAI API directly
@@ -109,6 +113,18 @@ class SummarizeService:
             self._client_2 = self._client_1  # OpenAI doesn't need separate clients
             self._openai_model = settings.openai_summarizer_model
             summarization_logger.info("Using OpenAI provider with model: %s", self._openai_model)
+        elif self._provider == "llama_cpp":
+            base_url_1 = config.llama_cpp_base_url_1 or settings.llama_cpp_url_1
+            base_url_2 = config.llama_cpp_base_url_2 or settings.llama_cpp_url_2
+            api_key = config.llama_cpp_api_key or settings.llama_cpp_api_key
+            self._client_1 = OpenAI(base_url=base_url_1, api_key=api_key)
+            self._client_2 = OpenAI(base_url=base_url_2, api_key=api_key)
+            self._openai_model = None
+            summarization_logger.info(
+                "Using llama.cpp provider with URLs: %s, %s",
+                base_url_1,
+                base_url_2,
+            )
         else:
             # Use Ollama (OpenAI-compatible API)
             base_url_1 = config.ollama_base_url_1 or settings.ollama_url_1
@@ -191,6 +207,29 @@ class SummarizeService:
             return self._client_1
         return self._client_2
 
+    def _request_options(self) -> dict[str, Any]:
+        """Build provider-specific request options."""
+        if self._provider != "llama_cpp":
+            return {}
+
+        return {
+            "extra_body": {
+                "reasoning": "off",
+                "reasoning_budget": 0,
+                "reasoning_in_content": False,
+                "reasoning_format": "none",
+                "chat_template_kwargs": {"enable_thinking": False},
+            }
+        }
+
+    def _clean_response_content(self, content: Optional[str]) -> str:
+        """Normalize LLM output before downstream parsing."""
+        if not content:
+            return ""
+        if self._provider == "llama_cpp":
+            return self._thought_prefix_pattern.sub("", content).strip()
+        return content.strip()
+
     def _get_model_for_tier(self, tier: int) -> str:
         """Get the model name for a tier."""
         # OpenAI provider uses a single model for all tiers
@@ -238,9 +277,10 @@ class SummarizeService:
                     response = client.chat.completions.create(
                         model=model,
                         messages=[{"role": "user", "content": prompt}],
+                        **self._request_options(),
                     )
                     raw_content = response.choices[0].message.content
-                    content = raw_content.strip() if raw_content else ""
+                    content = self._clean_response_content(raw_content)
 
                     # Extract token usage if available
                     prompt_tokens = 0
@@ -330,17 +370,6 @@ Provide only the percentage number."""
         total_prompt_tokens = 0
         total_completion_tokens = 0
         total_tokens = 0
-
-        # Topics-only mode
-        if self.config.mode == "topics-only":
-            return SummaryResult(
-                page_number=context.page_number,
-                chunk_id=context.chunk_id,
-                summary_notes=None,
-                summary_topics=None,
-                summary_relevancy=0,
-                attempts_used=0,
-            )
 
         # Build comprehensive context
         full_context = context.build_context()

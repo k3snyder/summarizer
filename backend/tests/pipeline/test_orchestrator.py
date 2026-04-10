@@ -324,3 +324,85 @@ class TestOrchestratorSkipModes:
 
             # Summarize service should not be called
             MockSummarize.return_value.summarize_pages_batch.assert_not_called()
+
+
+class TestOrchestratorVisionProviders:
+    """Test vision provider routing in the orchestrator."""
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_routes_llama_cpp_vision_mode(
+        self, sample_pdf_path, mock_extractor, mock_vision_processor
+    ):
+        """Test that llama.cpp config is passed into VisionProcessor."""
+        from app.config import settings
+        from app.pipeline.orchestrator import PipelineOrchestrator
+        from app.pipeline.vision.schemas import VisionProvider
+
+        config = {
+            "extract_only": False,
+            "skip_images": False,
+            "vision_mode": "llama_cpp",
+            "run_summarization": False,
+        }
+
+        with patch(
+            "app.pipeline.orchestrator.DocumentExtractor", return_value=mock_extractor
+        ), patch(
+            "app.pipeline.orchestrator.VisionProcessor", return_value=mock_vision_processor
+        ) as MockVision:
+            orchestrator = PipelineOrchestrator()
+            await orchestrator.run(
+                job_id="job_123",
+                input_file_path=sample_pdf_path,
+                config=config,
+            )
+
+            vision_config = MockVision.call_args.args[0]
+            assert vision_config.classifier_provider == VisionProvider.LLAMA_CPP
+            assert vision_config.extractor_provider == VisionProvider.LLAMA_CPP
+            assert vision_config.classifier_model == "model.gguf"
+            assert vision_config.extractor_model == "model.gguf"
+            assert vision_config.llama_cpp_base_url == settings.effective_llama_cpp_vision_base_url
+            assert vision_config.classifier_batch_size == 1
+            assert vision_config.extractor_batch_size == 1
+
+
+class TestOrchestratorSummarizerProviders:
+    """Test summarizer provider routing in the orchestrator."""
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_routes_llama_cpp_summarizer_provider(
+        self, sample_pdf_path, mock_extractor, mock_vision_processor, mock_summarize_service
+    ):
+        """Test that llama.cpp summarizer config is passed into SummarizeService."""
+        from app.config import settings
+        from app.pipeline.orchestrator import PipelineOrchestrator
+
+        config = {
+            "extract_only": False,
+            "skip_images": False,
+            "vision_mode": "none",
+            "run_summarization": True,
+            "summarizer_provider": "llama_cpp",
+            "summarizer_mode": "full",
+        }
+
+        with patch(
+            "app.pipeline.orchestrator.DocumentExtractor", return_value=mock_extractor
+        ), patch(
+            "app.pipeline.orchestrator.VisionProcessor", return_value=mock_vision_processor
+        ), patch(
+            "app.pipeline.orchestrator.SummarizeService", return_value=mock_summarize_service
+        ) as MockSummarize:
+            orchestrator = PipelineOrchestrator()
+            await orchestrator.run(
+                job_id="job_123",
+                input_file_path=sample_pdf_path,
+                config=config,
+            )
+
+            summarizer_config = MockSummarize.call_args.args[0]
+            assert summarizer_config.provider == "llama_cpp"
+            assert summarizer_config.llama_cpp_base_url_1 == settings.llama_cpp_url_1
+            assert summarizer_config.llama_cpp_base_url_2 == settings.llama_cpp_url_2
+            assert summarizer_config.llama_cpp_api_key == settings.llama_cpp_api_key

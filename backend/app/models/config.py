@@ -41,17 +41,17 @@ class PipelineConfig(BaseModel):
         description="DPI for PDF image extraction (72=fast, 300=high quality)"
     )
 
-    vision_mode: Literal['none', 'deepseek', 'gemini', 'openai', 'ollama', 'codex', 'claude'] = Field(
+    vision_mode: Literal['none', 'deepseek', 'gemini', 'openai', 'ollama', 'llama_cpp', 'codex', 'claude'] = Field(
         default='none',
         description="Vision processing provider (none disables vision processing)"
     )
 
-    vision_classifier_mode: Optional[Literal['none', 'ollama', 'openai', 'gemini', 'codex', 'claude']] = Field(
+    vision_classifier_mode: Optional[Literal['none', 'ollama', 'llama_cpp', 'openai', 'gemini', 'codex', 'claude']] = Field(
         default=None,
         description="Vision classifier provider (inherits from vision_mode if not set)"
     )
 
-    vision_extractor_mode: Optional[Literal['none', 'ollama', 'openai', 'gemini', 'codex', 'claude']] = Field(
+    vision_extractor_mode: Optional[Literal['none', 'ollama', 'llama_cpp', 'openai', 'gemini', 'codex', 'claude']] = Field(
         default=None,
         description="Vision extractor provider (inherits from vision_mode if not set)"
     )
@@ -88,9 +88,9 @@ class PipelineConfig(BaseModel):
         description="Summarization mode (full=notes+topics, topics-only=fast, skip=passthrough)"
     )
 
-    summarizer_provider: Literal['ollama', 'openai', 'codex', 'claude'] = Field(
-        default='ollama',
-        description="Summarizer provider (ollama=local privacy-first, openai=cloud API, codex/claude=CLI)"
+    summarizer_provider: Literal['ollama', 'llama_cpp', 'openai', 'codex', 'claude'] = Field(
+        default='llama_cpp',
+        description="Summarizer provider (llama_cpp=primary local GPU0, ollama=fallback local, openai=cloud API, codex/claude=CLI)"
     )
 
     summarizer_detailed_extraction: bool = Field(

@@ -54,12 +54,18 @@ function getVisionModeDescription(mode: string): string {
   switch (mode) {
     case "none":
       return "Disabled";
+    case "llama_cpp":
+      return "llama.cpp (Local)";
     case "ollama":
       return "Ollama (Local)";
     case "openai":
       return "OpenAI GPT-4V";
     case "gemini":
       return "Google Gemini";
+    case "codex":
+      return "Codex CLI";
+    case "claude":
+      return "Claude CLI";
     default:
       return mode;
   }
@@ -80,6 +86,8 @@ function getSummarizerModeDescription(mode: string): string {
 
 function getSummarizerProviderDescription(provider: string): string {
   switch (provider) {
+    case "llama_cpp":
+      return "llama.cpp (Local)";
     case "ollama":
       return "Ollama (Local)";
     case "openai":

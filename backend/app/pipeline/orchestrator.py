@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
+from app.config import settings
 from app.pipeline.models import PipelineStage, ProgressEvent
 from app.pipeline.extraction.extractor import DocumentExtractor
 from app.pipeline.extraction.schemas import ExtractionConfig
@@ -131,7 +132,7 @@ class PipelineOrchestrator:
         # Skip vision for text files (no images to process) or when images are disabled
         is_text_file = extraction_result.metadata.get("source_type") == "text"
         skip_images = config.get("skip_images", False) or config.get("text_only", False)
-        vision_mode = config.get("vision_mode", "ollama")
+        vision_mode = config.get("vision_mode", settings.vision_provider)
 
         if not is_text_file and not skip_images and vision_mode != "none":
             try:
@@ -275,12 +276,10 @@ class PipelineOrchestrator:
         Returns:
             Tuple of (updated pages, metrics)
         """
-        from app.config import settings
-
         stage_start = time.perf_counter()
 
         # Determine classifier provider (inherits from vision_mode if not set)
-        vision_mode = config.get("vision_mode", "ollama")
+        vision_mode = config.get("vision_mode", settings.vision_provider)
         classifier_mode = config.get("vision_classifier_mode") or vision_mode
         extractor_mode = config.get("vision_extractor_mode") or vision_mode
 
@@ -290,14 +289,16 @@ class PipelineOrchestrator:
                 return VisionProvider.OPENAI, settings.openai_vision_model
             elif mode == "gemini":
                 return VisionProvider.GEMINI, settings.gemini_vision_model
+            elif mode == "llama_cpp":
+                return VisionProvider.LLAMA_CPP, settings.llama_cpp_vision_model
             elif mode in ("codex", "claude"):
                 return VisionProvider.CODEX_CLI, f"{mode}-cli"
             else:
                 return VisionProvider.OLLAMA, settings.vision_model
 
-        # If extractor is CLI-based (codex or claude), force classifier to ollama (CLI doesn't do classification)
+        # If extractor is CLI-based, keep classification on the local vision provider.
         if extractor_mode in ("codex", "claude"):
-            classifier_mode = "ollama"
+            classifier_mode = settings.vision_provider
 
         classifier_provider, classifier_model = get_provider_and_model(classifier_mode)
         extractor_provider, extractor_model = get_provider_and_model(extractor_mode)
@@ -332,8 +333,15 @@ class PipelineOrchestrator:
             else:
                 vision_cli_provider = settings.vision_cli_provider
 
-        # CLI providers should run sequentially (1 at a time) to avoid hanging
-        extractor_batch_size = 1 if extractor_provider == VisionProvider.CODEX_CLI else None
+        # Single-slot backends should run sequentially to avoid 502/503 storms.
+        classifier_batch_size = 1 if classifier_provider in (
+            VisionProvider.LLAMA_CPP,
+            VisionProvider.CODEX_CLI,
+        ) else None
+        extractor_batch_size = 1 if extractor_provider in (
+            VisionProvider.LLAMA_CPP,
+            VisionProvider.CODEX_CLI,
+        ) else None
 
         vision_config = VisionConfig(
             classifier_provider=classifier_provider,
@@ -341,10 +349,13 @@ class PipelineOrchestrator:
             extractor_provider=extractor_provider,
             extractor_model=extractor_model,
             batch_size=5,
+            classifier_batch_size=classifier_batch_size,
             extractor_batch_size=extractor_batch_size,
             detailed_extraction=config.get("vision_detailed_extraction", False),
             cli_provider=vision_cli_provider,
             ollama_base_url=settings.ollama_base_url,
+            llama_cpp_base_url=settings.effective_llama_cpp_vision_base_url,
+            llama_cpp_api_key=settings.llama_cpp_api_key,
             openai_api_key=settings.openai_api_key,
             gemini_api_key=settings.gemini_api_key,
         )
@@ -514,18 +525,22 @@ class PipelineOrchestrator:
         Returns:
             Tuple of (updated pages, metrics)
         """
-        from app.config import settings
-
         stage_start = time.perf_counter()
         summarizer_mode = config.get("summarizer_mode", "full")
-        summarizer_provider = config.get("summarizer_provider", "ollama")
+        summarizer_provider = config.get("summarizer_provider", settings.summarizer_provider)
+        if summarizer_provider == "openai":
+            summarizer_model = settings.openai_summarizer_model
+        elif summarizer_provider == "llama_cpp":
+            summarizer_model = settings.llama_cpp_model
+        else:
+            summarizer_model = settings.summarizer_model_tier_1
 
         summarization_logger.info(
             "Summarization started - pages=%d, mode=%s, provider=%s, model=%s",
             len(pages),
             summarizer_mode,
             summarizer_provider,
-            settings.summarizer_model_tier_1,
+            summarizer_model,
         )
 
         if progress_callback:
@@ -543,6 +558,9 @@ class PipelineOrchestrator:
             batch_size=5,
             detailed_extraction=config.get("summarizer_detailed_extraction", False),
             insight_mode=config.get("summarizer_insight_mode", False),
+            llama_cpp_base_url_1=settings.llama_cpp_url_1,
+            llama_cpp_base_url_2=settings.llama_cpp_url_2,
+            llama_cpp_api_key=settings.llama_cpp_api_key,
         )
 
         # Use CLISummarizer for codex/claude providers, otherwise SummarizeService

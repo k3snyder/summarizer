@@ -11,6 +11,7 @@ class VisionProvider(Enum):
     """Supported vision providers."""
 
     OLLAMA = "ollama"
+    LLAMA_CPP = "llama_cpp"
     OPENAI = "openai"
     GEMINI = "gemini"
     CODEX_CLI = "codex"
@@ -21,15 +22,16 @@ class VisionConfig:
     """Configuration for vision processing with separate classifier and extractor."""
 
     # Classifier configuration
-    classifier_provider: VisionProvider = VisionProvider.OLLAMA
+    classifier_provider: VisionProvider = VisionProvider.LLAMA_CPP
     classifier_model: Optional[str] = None
 
     # Extractor configuration
-    extractor_provider: VisionProvider = VisionProvider.OLLAMA
+    extractor_provider: VisionProvider = VisionProvider.LLAMA_CPP
     extractor_model: Optional[str] = None
 
     # Shared settings
     batch_size: int = 5
+    classifier_batch_size: Optional[int] = None  # If None, uses batch_size. Set to 1 for llama.cpp.
     extractor_batch_size: Optional[int] = None  # If None, uses batch_size. Set to 1 for OpenAI.
     skip_classification: bool = False
     detailed_extraction: bool = False  # Run extraction 3x and synthesize
@@ -39,6 +41,8 @@ class VisionConfig:
 
     # Provider credentials (shared across both)
     ollama_base_url: Optional[str] = None
+    llama_cpp_base_url: Optional[str] = None
+    llama_cpp_api_key: Optional[str] = None
     openai_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
 

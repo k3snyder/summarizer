@@ -15,6 +15,7 @@ from app.pipeline.vision.schemas import (
 )
 from app.pipeline.vision.providers.base import VisionProviderBase
 from app.pipeline.vision.providers.ollama import OllamaVisionProvider
+from app.pipeline.vision.providers.llama_cpp import LlamaCppVisionProvider
 from app.pipeline.vision.providers.openai import OpenAIVisionProvider
 from app.pipeline.vision.providers.gemini import GeminiVisionProvider
 from app.pipeline.vision.providers.codex_cli import CLIVisionProvider
@@ -45,9 +46,11 @@ class VisionProcessor:
             config.extractor_model,
         )
 
-        # Separate semaphores for rate limiting each provider
-        # Use extractor_batch_size if specified (e.g., 1 for OpenAI), otherwise batch_size
-        self._classifier_semaphore = asyncio.Semaphore(config.batch_size)
+        # Separate semaphores for rate limiting each provider.
+        # llama.cpp multimodal is currently deployed with a single slot on GPU1,
+        # so classifier/extractor concurrency must be configurable independently.
+        classifier_concurrency = config.classifier_batch_size or config.batch_size
+        self._classifier_semaphore = asyncio.Semaphore(classifier_concurrency)
         extractor_concurrency = config.extractor_batch_size or config.batch_size
         self._extractor_semaphore = asyncio.Semaphore(extractor_concurrency)
 
@@ -74,6 +77,12 @@ class VisionProcessor:
         if provider == VisionProvider.OLLAMA:
             return OllamaVisionProvider(
                 base_url=self.config.ollama_base_url,
+                model=model,
+            )
+        elif provider == VisionProvider.LLAMA_CPP:
+            return LlamaCppVisionProvider(
+                base_url=self.config.llama_cpp_base_url,
+                api_key=self.config.llama_cpp_api_key,
                 model=model,
             )
         elif provider == VisionProvider.OPENAI:

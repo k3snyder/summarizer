@@ -5,10 +5,10 @@ Extracts and structures document content for AI-ready consumption. A privacy-fir
 ## Features
 
 - **Multi-Format Support** - PDF, PPTX, TXT, and Markdown files
-- **Vision Processing** - Intelligent classification and extraction of charts, graphs, and diagrams
+- **Vision Processing** - Intelligent classification and extraction of diagrams, screenshots, photos, and visually meaningful tables
 - **Quality-Validated Summarization** - Multi-attempt processing with relevancy thresholds
-- **Privacy-First** - Local processing with Ollama, zero cloud exposure option
-- **Multi-Provider** - Ollama (local), OpenAI, Gemini, DeepSeek, Codex CLI, Claude CLI
+- **Privacy-First** - Local processing with llama.cpp or Ollama, zero cloud exposure option
+- **Multi-Provider** - llama.cpp (local), Ollama (fallback local), OpenAI, Gemini, DeepSeek, Codex CLI, Claude CLI
 - **Detailed Extraction** - Optional 3x extraction with synthesis for comprehensive coverage
 - **Web UI + REST API** - Next.js frontend with FastAPI backend
 
@@ -41,7 +41,8 @@ The pipeline produces a unified JSON schema at each stage:
 - Tesseract OCR
 - Poppler (for PDF rendering)
 - LibreOffice (for PPTX processing)
-- Ollama (optional, for local LLM processing)
+- llama.cpp server (recommended local default)
+- Ollama (optional fallback local LLM)
 - Codex CLI (optional, for Codex provider)
 - Claude CLI (optional, for Claude CLI provider)
 
@@ -74,7 +75,7 @@ npm install -g @anthropic-ai/claude-code
 ```bash
 cd backend
 python -m venv venv
-source venv/bin/activate
+source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
@@ -85,8 +86,19 @@ Create `.env` file:
 HOST=0.0.0.0
 PORT=8000
 
-# Ollama (local LLM)
-OLLAMA_BASE_URL=http://localhost:11434
+# Local defaults
+VISION_PROVIDER=llama_cpp
+SUMMARIZER_PROVIDER=llama_cpp
+
+# llama.cpp text + vision split
+LLAMA_CPP_BASE_URL=http://localhost:11440/v1
+LLAMA_CPP_VISION_BASE_URL=http://localhost:11439/v1
+LLAMA_CPP_MODEL=model.gguf
+LLAMA_CPP_VISION_MODEL=model.gguf
+LLAMA_CPP_API_KEY=sk-no-key-required
+
+# Optional fallback Ollama
+OLLAMA_BASE_URL=http://localhost:11434/v1
 
 # Optional: Cloud providers
 OPENAI_API_KEY=sk-...
@@ -113,6 +125,17 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:8000
 
 ### Start Services
 
+Use the root Makefile to bring both dev services up or down:
+
+```bash
+make services-up
+make services-down
+```
+
+`make services-up` starts the FastAPI backend and Next.js frontend in the background, writes PID files under `.run/`, and logs to `.run/backend.log` and `.run/frontend.log`.
+
+Manual startup is still available:
+
 ```bash
 # Terminal 1: Backend
 cd backend
@@ -124,6 +147,16 @@ npm run dev
 ```
 
 Open http://localhost:3000 in your browser.
+
+### Recommended Local Topology
+
+The current local-first setup is:
+
+- `llama.cpp` on `11440` for primary text + summarization
+- `llama.cpp` on `11439` for multimodal vision
+- `Ollama` as an optional fallback local provider
+
+This split lets summarization and vision run on separate local inference endpoints while keeping cloud providers optional.
 
 ### API Endpoints
 
@@ -141,7 +174,7 @@ Open http://localhost:3000 in your browser.
 ```bash
 curl -X POST http://localhost:8000/api/jobs \
   -F "file=@document.pdf" \
-  -F 'config={"vision_mode":"ollama","summarizer_provider":"ollama"}'
+  -F 'config={"vision_mode":"llama_cpp","summarizer_provider":"llama_cpp"}'
 ```
 
 ### Pipeline Configuration
@@ -153,7 +186,7 @@ curl -X POST http://localhost:8000/api/jobs \
   "skip_images": false,
   "text_only": false,
   "pdf_image_dpi": 200,
-  "vision_mode": "ollama",
+  "vision_mode": "llama_cpp",
   "vision_classifier_mode": null,
   "vision_extractor_mode": null,
   "vision_cli_provider": null,
@@ -162,24 +195,29 @@ curl -X POST http://localhost:8000/api/jobs \
   "chunk_overlap": 80,
   "run_summarization": true,
   "summarizer_mode": "full",
-  "summarizer_provider": "ollama",
+  "summarizer_provider": "llama_cpp",
   "summarizer_cli_provider": null,
   "summarizer_detailed_extraction": false,
+  "summarizer_insight_mode": false,
   "keep_base64_images": false
 }
 ```
 
-**Vision Modes**: `none`, `ollama`, `openai`, `gemini`, `deepseek`, `codex`, `claude`
+**Vision Modes**: `none`, `llama_cpp`, `ollama`, `openai`, `gemini`, `deepseek`, `codex`, `claude`
 
-**Vision CLI Providers**: `codex`, `claude` (used when vision_mode is codex or claude)
+**Vision Classifier / Extractor Modes**: `none`, `llama_cpp`, `ollama`, `openai`, `gemini`, `codex`, `claude`
+
+**Vision CLI Providers**: `codex`, `claude` (used when `vision_mode` is `codex` or `claude`)
 
 **Summarizer Modes**: `full` (notes + topics), `topics-only`, `skip`
 
-**Summarizer Providers**: `ollama`, `openai`, `codex`, `claude`
+**Summarizer Providers**: `llama_cpp`, `ollama`, `openai`, `codex`, `claude`
 
-**Summarizer CLI Providers**: `codex`, `claude` (used when summarizer_provider is codex or claude)
+**Summarizer CLI Providers**: `codex`, `claude` (used when `summarizer_provider` is `codex` or `claude`)
 
 **Detailed Extraction**: When enabled, runs extraction 3 times and synthesizes results for comprehensive coverage
+
+**Vision Classification Policy**: The classifier is intentionally conservative about page furniture. Footer/header logos, page numbers, copyright lines, decorative cover backgrounds, branding accents, and simple table-of-contents leader lines should not trigger extraction by themselves. Pages are classified `YES` when they contain substantive visual information that would be lost with text-only extraction.
 
 ## Project Structure
 
@@ -222,8 +260,9 @@ curl -X POST http://localhost:8000/api/jobs \
 - TypeScript
 
 ### LLM Providers
-- **Ollama** - Local inference (gemma3, ministral)
-- **OpenAI** - GPT-4o Vision
+- **llama.cpp** - Primary local inference for summarization and multimodal vision
+- **Ollama** - Fallback local inference
+- **OpenAI** - GPT-4.1 family
 - **Gemini** - Google AI
 - **DeepSeek** - Specialized OCR
 - **Codex CLI** - OpenAI Codex (subprocess execution)
@@ -239,7 +278,13 @@ curl -X POST http://localhost:8000/api/jobs \
 |----------|---------|-------------|
 | `HOST` | `0.0.0.0` | Server host |
 | `PORT` | `8000` | Server port |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama API URL |
+| `VISION_PROVIDER` | `llama_cpp` | Default vision provider |
+| `SUMMARIZER_PROVIDER` | `llama_cpp` | Default summarizer provider |
+| `LLAMA_CPP_BASE_URL` | `http://localhost:11440/v1` | Primary llama.cpp text/summarization endpoint |
+| `LLAMA_CPP_VISION_BASE_URL` | `http://localhost:11439/v1` | llama.cpp multimodal vision endpoint |
+| `LLAMA_CPP_MODEL` | `model.gguf` | Default llama.cpp text model |
+| `LLAMA_CPP_VISION_MODEL` | `model.gguf` | Default llama.cpp vision model |
+| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Fallback Ollama API URL |
 | `OPENAI_API_KEY` | - | OpenAI API key |
 | `GEMINI_API_KEY` | - | Google Gemini API key |
 | `LOG_LEVEL` | `INFO` | Logging level |

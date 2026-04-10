@@ -37,19 +37,24 @@ def mock_config():
 @pytest.fixture
 def mock_orchestrator():
     """Mock PipelineOrchestrator."""
+    from app.pipeline.orchestrator import PipelineMetrics
+
     orchestrator = AsyncMock()
     orchestrator.run = AsyncMock(
-        return_value={
-            "document": {
-                "document_id": "doc_123",
-                "filename": "test.pdf",
-                "total_pages": 2,
+        return_value=(
+            {
+                "document": {
+                    "document_id": "doc_123",
+                    "filename": "test.pdf",
+                    "total_pages": 2,
+                },
+                "pages": [
+                    {"chunk_id": "chunk_1", "summary_notes": ["Note 1"]},
+                    {"chunk_id": "chunk_2", "summary_notes": ["Note 2"]},
+                ],
             },
-            "pages": [
-                {"chunk_id": "chunk_1", "summary_notes": ["Note 1"]},
-                {"chunk_id": "chunk_2", "summary_notes": ["Note 2"]},
-            ],
-        }
+            PipelineMetrics(),
+        )
     )
     return orchestrator
 
@@ -179,6 +184,7 @@ class TestPipelineRunnerProgressUpdates:
 
         async def mock_run(**kwargs):
             """Simulate orchestrator with progress callbacks."""
+            from app.pipeline.orchestrator import PipelineMetrics
             progress_callback = kwargs.get("progress_callback")
             if progress_callback:
                 await progress_callback(
@@ -188,7 +194,7 @@ class TestPipelineRunnerProgressUpdates:
                         message="Starting extraction",
                     )
                 )
-            return {"document": {}, "pages": []}
+            return {"document": {}, "pages": []}, PipelineMetrics()
 
         mock_orchestrator = AsyncMock()
         mock_orchestrator.run = mock_run

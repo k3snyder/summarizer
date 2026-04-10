@@ -235,3 +235,59 @@ class TestSkipMode:
             assert result.summary_notes is None
             assert result.summary_topics is None
             assert result.summary_relevancy == 0
+
+
+class TestLlamaCppProvider:
+    """Test llama.cpp-specific summarizer behavior."""
+
+    def test_llama_cpp_provider_uses_gpu0_text_endpoint(self):
+        """Test that llama.cpp summarizer uses the configured text endpoint."""
+        from app.pipeline.summarization.summarizer import SummarizeService
+        from app.pipeline.summarization.schemas import SummarizerConfig
+
+        config = SummarizerConfig(
+            provider="llama_cpp",
+            llama_cpp_base_url_1="http://localhost:11440/v1",
+            llama_cpp_base_url_2="http://localhost:11440/v1",
+            llama_cpp_api_key="sk-test",
+        )
+
+        service = SummarizeService(config)
+
+        assert str(service._client_1.base_url) == "http://localhost:11440/v1/"
+        assert str(service._client_2.base_url) == "http://localhost:11440/v1/"
+
+    @pytest.mark.asyncio
+    async def test_llama_cpp_provider_disables_reasoning_and_strips_thought_prefix(
+        self, sample_page_context
+    ):
+        """Test that llama.cpp calls disable reasoning and normalize response text."""
+        from app.pipeline.summarization.summarizer import SummarizeService
+        from app.pipeline.summarization.schemas import SummarizerConfig
+
+        config = SummarizerConfig(provider="llama_cpp")
+        service = SummarizeService(config)
+
+        mock_message = MagicMock()
+        mock_message.content = "<|channel>thought\n<channel|>* Key point 1\n* Key point 2"
+
+        mock_choice = MagicMock()
+        mock_choice.message = mock_message
+
+        mock_response = MagicMock()
+        mock_response.choices = [mock_choice]
+        mock_response.usage = None
+
+        with patch.object(
+            service._client_1.chat.completions,
+            "create",
+            return_value=mock_response,
+        ) as mock_create:
+            response = await service._call_llm("Summarize this", tier=1)
+
+            assert response.content == "* Key point 1\n* Key point 2"
+            assert mock_create.call_args.kwargs["extra_body"]["reasoning"] == "off"
+            assert mock_create.call_args.kwargs["extra_body"]["reasoning_budget"] == 0
+            assert mock_create.call_args.kwargs["extra_body"]["reasoning_in_content"] is False
+            assert mock_create.call_args.kwargs["extra_body"]["reasoning_format"] == "none"
+            assert mock_create.call_args.kwargs["extra_body"]["chat_template_kwargs"]["enable_thinking"] is False

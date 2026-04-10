@@ -15,7 +15,7 @@ export type PdfImageDpi = 72 | 144 | 200 | 300;
  * 'none' disables vision processing.
  * 'codex' and 'claude' use CLI executors.
  */
-export type VisionMode = 'none' | 'deepseek' | 'gemini' | 'openai' | 'ollama' | 'codex' | 'claude';
+export type VisionMode = 'none' | 'deepseek' | 'gemini' | 'openai' | 'ollama' | 'llama_cpp' | 'codex' | 'claude';
 
 /**
  * CLI provider options for vision and summarization.
@@ -31,9 +31,10 @@ export type SummarizerMode = 'full' | 'topics-only' | 'skip';
 
 /**
  * Summarizer provider options.
- * ollama = local privacy-first, openai = cloud API, codex/claude = CLI executors
+ * llama_cpp = primary local GPU0 server, ollama = fallback local server,
+ * openai = cloud API, codex/claude = CLI executors
  */
-export type SummarizerProvider = 'ollama' | 'openai' | 'codex' | 'claude';
+export type SummarizerProvider = 'ollama' | 'llama_cpp' | 'openai' | 'codex' | 'claude';
 
 /**
  * Configuration for the document processing pipeline.
@@ -85,7 +86,7 @@ export interface PipelineConfig {
   /** Summarization mode (full=notes+topics, topics-only=fast, skip=passthrough) */
   summarizer_mode: SummarizerMode;
 
-  /** Summarizer provider (ollama=local, openai=cloud) */
+  /** Summarizer provider (llama_cpp=local GPU0, ollama=local fallback, openai=cloud) */
   summarizer_provider: SummarizerProvider;
 
   /** Run summarization 3 times per page and synthesize results for comprehensive coverage */
@@ -112,13 +113,13 @@ export const DEFAULT_PIPELINE_CONFIG: PipelineConfig = {
   skip_pptx_tables: false,
   text_only: false,
   pdf_image_dpi: 200,
-  vision_mode: 'ollama',
+  vision_mode: 'llama_cpp',
   vision_detailed_extraction: false,
   chunk_size: 3000,
   chunk_overlap: 80,
   run_summarization: true,
   summarizer_mode: 'full',
-  summarizer_provider: 'ollama',
+  summarizer_provider: 'llama_cpp',
   summarizer_detailed_extraction: false,
   summarizer_insight_mode: false,
   keep_base64_images: false,

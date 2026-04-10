@@ -66,11 +66,16 @@ class SummarizerConfig:
     ollama_base_url_1: Optional[str] = None
     ollama_base_url_2: Optional[str] = None
 
+    # llama.cpp text configuration
+    llama_cpp_base_url_1: Optional[str] = None
+    llama_cpp_base_url_2: Optional[str] = None
+    llama_cpp_api_key: Optional[str] = None
+
     # Processing mode
     mode: str = "full"  # "full" or "topics-only"
 
     # Provider selection
-    provider: str = "ollama"  # "ollama" or "openai"
+    provider: str = "llama_cpp"  # "llama_cpp", "ollama", or "openai"
 
     # Batch processing
     batch_size: int = 5

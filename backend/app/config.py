@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     cleanup_max_age_hours: int = 24
 
     # -------------------------------------------------------------------------
-    # Ollama Configuration (Local LLM)
+    # Ollama Configuration (fallback local LLM)
     # -------------------------------------------------------------------------
     ollama_base_url: str = "http://localhost:11434/v1"
     ollama_base_url_1: Optional[str] = None
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Vision Processing Configuration
     # -------------------------------------------------------------------------
-    vision_provider: str = "ollama"
+    vision_provider: str = "llama_cpp"
     vision_model: str = "ministral-3:latest"
 
     # Separate classifier/extractor configuration (optional overrides)
@@ -49,6 +49,17 @@ class Settings(BaseSettings):
     vision_classifier_model: Optional[str] = None     # Inherits from provider default
     vision_extractor_provider: Optional[str] = None   # Inherits from vision_provider
     vision_extractor_model: Optional[str] = None      # Inherits from provider default
+
+    # -------------------------------------------------------------------------
+    # llama.cpp Configuration
+    # -------------------------------------------------------------------------
+    llama_cpp_base_url: str = "http://localhost:11440/v1"
+    llama_cpp_base_url_1: Optional[str] = None
+    llama_cpp_base_url_2: Optional[str] = None
+    llama_cpp_api_key: str = "sk-no-key-required"
+    llama_cpp_model: str = "model.gguf"
+    llama_cpp_vision_base_url: Optional[str] = None
+    llama_cpp_vision_model: str = "model.gguf"
 
     # -------------------------------------------------------------------------
     # OpenAI Configuration
@@ -89,9 +100,10 @@ class Settings(BaseSettings):
     # -------------------------------------------------------------------------
     # Summarization Configuration
     # -------------------------------------------------------------------------
-    summarizer_model_tier_1: str = "ministral-3:latest"
-    summarizer_model_tier_2: str = "ministral-3:latest"
-    summarizer_model_tier_3: str = "ministral-3:latest"
+    summarizer_provider: str = "llama_cpp"
+    summarizer_model_tier_1: str = "model.gguf"
+    summarizer_model_tier_2: str = "model.gguf"
+    summarizer_model_tier_3: str = "model.gguf"
     summarizer_quality_threshold_high: int = 90
     summarizer_quality_threshold_low: int = 85
     summarizer_max_attempts: int = 30
@@ -124,6 +136,21 @@ class Settings(BaseSettings):
     def ollama_url_2(self) -> str:
         """Get second Ollama URL, falling back to first URL."""
         return self.ollama_base_url_2 or self.ollama_url_1
+
+    @property
+    def llama_cpp_url_1(self) -> str:
+        """Get first llama.cpp text URL, falling back to base URL."""
+        return self.llama_cpp_base_url_1 or self.llama_cpp_base_url
+
+    @property
+    def llama_cpp_url_2(self) -> str:
+        """Get second llama.cpp text URL, falling back to first URL."""
+        return self.llama_cpp_base_url_2 or self.llama_cpp_url_1
+
+    @property
+    def effective_llama_cpp_vision_base_url(self) -> str:
+        """Get the vision-specific llama.cpp URL, falling back to the text URL."""
+        return self.llama_cpp_vision_base_url or self.llama_cpp_base_url
 
     @property
     def effective_log_level_extraction(self) -> str:
@@ -161,6 +188,8 @@ class Settings(BaseSettings):
             return self.openai_vision_model
         elif provider == "gemini":
             return self.gemini_vision_model
+        elif provider == "llama_cpp":
+            return self.llama_cpp_vision_model
         return self.vision_model
 
     @property
