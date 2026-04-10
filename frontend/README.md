@@ -54,7 +54,7 @@ npm run dev
 ## Usage
 
 1. Navigate to `http://localhost:3000`
-2. Drag and drop or click to upload a PDF, TXT, or MD file (max 100MB)
+2. Drag and drop or click to upload a PDF, TXT, or MD file (max 1000MB)
 3. Configure the pipeline options:
    - **Extraction**: Skip tables, images, or enable text-only mode
    - **Vision**: Choose a vision processing provider (Ollama, Gemini, OpenAI, DeepSeek)

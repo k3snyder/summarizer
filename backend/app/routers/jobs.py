@@ -46,7 +46,7 @@ async def create_job(
 
     Raises:
         HTTPException 400: Invalid file type or config format
-        HTTPException 413: File too large (>100MB)
+        HTTPException 413: File too large (>1000MB)
     """
     # Validate filename exists
     if not file.filename:
@@ -64,8 +64,8 @@ async def create_job(
             detail=f"Invalid file type. Allowed: {', '.join(allowed_extensions)}"
         )
 
-    # Validate file size (100MB max)
-    max_size = 100 * 1024 * 1024  # 100MB in bytes
+    # Validate file size (1000MB max)
+    max_size = 1000 * 1024 * 1024  # 1000MB in bytes
     file.file.seek(0, 2)  # Seek to end
     file_size = file.file.tell()
     file.file.seek(0)  # Reset to beginning

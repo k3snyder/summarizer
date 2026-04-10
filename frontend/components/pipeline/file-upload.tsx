@@ -14,7 +14,7 @@ const ACCEPTED_MIME_TYPES = [
   "text/markdown",
   "text/x-markdown",
 ];
-const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+const MAX_FILE_SIZE = 1000 * 1024 * 1024; // 1000MB
 
 interface FileUploadProps {
   onFileSelect: (file: File) => void;
@@ -133,7 +133,7 @@ export function FileUpload({
       }
 
       if (!isValidFileSize(file)) {
-        setError(`File is too large. Maximum size is 100MB.`);
+        setError(`File is too large. Maximum size is 1000MB.`);
         return;
       }
 
@@ -268,7 +268,7 @@ export function FileUpload({
               or click to browse
             </p>
             <p className="text-xs text-muted-foreground">
-              PDF, PowerPoint, TXT, or MD files up to 100MB
+              PDF, PowerPoint, TXT, or MD files up to 1000MB
             </p>
           </div>
         </CardContent>
