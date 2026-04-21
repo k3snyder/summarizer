@@ -41,6 +41,7 @@ logs/
 
 # Output files
 output/
+.summarizer-cli-runs
 
 # Database
 *.db
@@ -55,6 +56,9 @@ output/
 node_modules/
 .next/
 out/
+.run
+.omc
+.omx
 .turbo/
 .vercel/
 tsconfig.tsbuildinfo

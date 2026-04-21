@@ -1,0 +1,4 @@
+interface:
+  display_name: "Summarizer CLI"
+  short_description: "Submit docs to the summarizer REST pipeline"
+  default_prompt: "Use $summarizer-cli to submit a document to the summarizer pipeline and return the JSON and Markdown outputs."
